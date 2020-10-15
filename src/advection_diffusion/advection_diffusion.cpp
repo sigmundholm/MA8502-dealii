@@ -60,6 +60,8 @@ private:
     SparseMatrix<double> system_matrix;
     Vector<double> solution;
     Vector<double> system_rhs;
+
+    double eps = 0.01;
 };
 
 // Functions for right hand side and boundary values.
@@ -112,23 +114,6 @@ value(const Point<dim> &p) const {
 }
 
 
-/*
-template<int dim>
-double VectorField<dim>::
-point_value(Point<dim> &p, const unsigned int) {
-    (void) p;
-    return 0;
-}
-
-template<int dim>
-void VectorField<dim>::
-vector_value(const Point<dim> &p, Tensor<1, dim> &value) {
-    for (unsigned int c = 0; c < dim; ++c)
-        value[c] = point_value(p, c);
-}
- */
-
-
 template<int dim>
 PoissonNitsche<dim>::PoissonNitsche(const unsigned int degree)
         : fe(degree), dof_handler(triangulation) {}
@@ -140,7 +125,6 @@ void PoissonNitsche<dim>::make_grid() {
     Point<dim> p1(-1, -1);
     Point<dim> p2(1, 1);
     GridGenerator::hyper_rectangle(triangulation, p1, p2);
-    GridTools::remove_anisotropy(triangulation, 1.618, 5);
     triangulation.refine_global(7);
 
     // Write svg of grid to file.
@@ -176,7 +160,6 @@ void PoissonNitsche<dim>::setup_system() {
 template<int dim>
 void PoissonNitsche<dim>::assemble_system() {
     QGauss<dim> quadrature_formula(fe.degree + 1);
-    QGauss<dim - 1> face_quadrature_formula(fe.degree + 1);
 
     RightHandSide<dim> right_hand_side;
     VectorField<dim> vector_field;
@@ -201,19 +184,18 @@ void PoissonNitsche<dim>::assemble_system() {
             for (const unsigned int i : fe_values.dof_indices()) {
                 for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
-                            (fe_values.shape_grad(i, q_index) // grad phi_i(x_q)
-                             * fe_values.shape_grad(j, q_index) *
-                             // grad phi_j(x_q)
-                             + (vector_field.value(x_q)
-                             * fe_values.shape_grad(i, q_index)) *
-                             fe_values.shape_value(j, q_index)
-                            ) * fe_values.JxW(q_index);             // dx
+                            (eps * fe_values.shape_grad(i, q_index)
+                             * fe_values.shape_grad(j, q_index)
+                             +
+                             (vector_field.value(x_q)
+                              * fe_values.shape_grad(i, q_index))
+                             * fe_values.shape_value(j, q_index)
+                            ) * fe_values.JxW(q_index);            // dx
                 }
 
                 // RHS
                 const auto x_q = fe_values.quadrature_point(q_index);
-                cell_rhs(i) += (fe_values.shape_value(i, q_index) *
-                                // phi_i(x_q)
+                cell_rhs(i) += (fe_values.shape_value(i, q_index) *  // phi_i
                                 right_hand_side.value(x_q) *         // f(x_q)
                                 fe_values.JxW(q_index));             // dx
             }
@@ -246,13 +228,6 @@ void PoissonNitsche<dim>::assemble_system() {
 
 template<int dim>
 void PoissonNitsche<dim>::solve() {
-    /*
-    SolverControl solver_control(1000, 1e-12);
-    SolverCG<Vector<double>> solver(solver_control);
-    solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-    std::cout << "  " << solver_control.last_step()
-              << " CG iterations needed to obtain convergence." << std::endl;
-    */
     SparseDirectUMFPACK inverse;
     inverse.initialize(system_matrix);
     inverse.vmult(solution, system_rhs);
