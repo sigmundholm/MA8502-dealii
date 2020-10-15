@@ -34,9 +34,9 @@
 using namespace dealii;
 
 template<int dim>
-class PoissonNitsche {
+class Poisson {
 public:
-    PoissonNitsche(const unsigned int degree);
+    Poisson(const unsigned int degree);
 
     void run();
 
@@ -65,37 +65,44 @@ private:
 template<int dim>
 class RightHandSide : public Function<dim> {
 public:
-    virtual double value(const Point<dim> &p, const unsigned int component = 0) const override;
+    virtual double
+    value(const Point<dim> &p, const unsigned int component = 0) const override;
 };
 
 template<int dim>
 class BoundaryValues : public Function<dim> {
 public:
-    virtual double value(const Point<dim> &p, const unsigned int component = 0) const override;
+    virtual double
+    value(const Point<dim> &p, const unsigned int component = 0) const override;
 };
 
 
 template<int dim>
-double RightHandSide<dim>::value(const Point<dim> &p, const unsigned int) const {
+double
+RightHandSide<dim>::value(const Point<dim> &p, const unsigned int) const {
     (void) p;
     return 1;
 }
 
 template<int dim>
-double BoundaryValues<dim>::value(const Point<dim> &p, const unsigned int) const {
+double
+BoundaryValues<dim>::value(const Point<dim> &p, const unsigned int) const {
     (void) p;
-    return 0;
+    return p[0];
 }
 
 
 template<int dim>
-PoissonNitsche<dim>::PoissonNitsche(const unsigned int degree)
+Poisson<dim>::Poisson(const unsigned int degree)
         : fe(degree), dof_handler(triangulation) {}
 
 
 template<int dim>
-void PoissonNitsche<dim>::make_grid() {
-    GridGenerator::cylinder(triangulation, 5, 10);
+void Poisson<dim>::make_grid() {
+    // GridGenerator::cylinder(triangulation, 5, 10);
+    Point<dim> p1(-1, -1);
+    Point<dim> p2(1, 1);
+    GridGenerator::hyper_rectangle(triangulation, p1, p2);
     GridTools::remove_anisotropy(triangulation, 1.618, 5);
     triangulation.refine_global(dim == 2 ? 2 : 0);
 
@@ -103,20 +110,22 @@ void PoissonNitsche<dim>::make_grid() {
 
     // Write svg of grid to file.
     if (dim == 2) {
-        std::ofstream out("poisson-nitsche-grid.svg");
+        std::ofstream out("poisson-grid.svg");
         GridOut grid_out;
         grid_out.write_svg(triangulation, out);
         std::cout << "Grid written to file as svg." << std::endl;
     }
 
-    std::cout << "  Number of active cells: " << triangulation.n_active_cells() << std::endl;
+    std::cout << "  Number of active cells: " << triangulation.n_active_cells()
+              << std::endl;
 
 }
 
 template<int dim>
-void PoissonNitsche<dim>::setup_system() {
+void Poisson<dim>::setup_system() {
     dof_handler.distribute_dofs(fe);
-    std::cout << "  Number of degrees of freedom: " << dof_handler.n_dofs() << std::endl;
+    std::cout << "  Number of degrees of freedom: " << dof_handler.n_dofs()
+              << std::endl;
 
     DoFRenumbering::Cuthill_McKee(dof_handler);
     DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
@@ -130,22 +139,16 @@ void PoissonNitsche<dim>::setup_system() {
 }
 
 template<int dim>
-void PoissonNitsche<dim>::assemble_system() {
+void Poisson<dim>::assemble_system() {
     QGauss<dim> quadrature_formula(fe.degree + 1);
     QGauss<dim - 1> face_quadrature_formula(fe.degree + 1);
 
     RightHandSide<dim> right_hand_side;
-    BoundaryValues<dim> boundary_values;
 
     FEValues<dim> fe_values(fe,
                             quadrature_formula,
                             update_values | update_gradients |
                             update_quadrature_points | update_JxW_values);
-    FEFaceValues<dim> fe_face_values(fe,
-                                     face_quadrature_formula,
-                                     update_values | update_gradients |
-                                     update_quadrature_points | update_normal_vectors |
-                                     update_JxW_values);
 
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
@@ -161,62 +164,19 @@ void PoissonNitsche<dim>::assemble_system() {
             for (const unsigned int i : fe_values.dof_indices()) {
                 for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
-                            fe_values.shape_grad(i, q_index) *  // grad phi_i(x_q)
-                            fe_values.shape_grad(j, q_index) *  // grad phi_j(x_q)
+                            fe_values.shape_grad(i, q_index) *
+                            // grad phi_i(x_q)
+                            fe_values.shape_grad(j, q_index) *
+                            // grad phi_j(x_q)
                             fe_values.JxW(q_index);             // dx
                 }
 
                 // RHS
                 const auto x_q = fe_values.quadrature_point(q_index);
-                cell_rhs(i) += (fe_values.shape_value(i, q_index) *  // phi_i(x_q)
+                cell_rhs(i) += (fe_values.shape_value(i, q_index) *
+                                // phi_i(x_q)
                                 right_hand_side.value(x_q) *         // f(x_q)
                                 fe_values.JxW(q_index));             // dx
-            }
-        }
-
-        double h;
-        double mu;
-
-        for (const auto &face : cell->face_iterators()) {
-            // TODO hva skal boundary id være?
-            if (face->at_boundary()) {
-                fe_face_values.reinit(cell, face);
-
-                h = std::pow(face->measure(), 1.0 / (dim - 1));
-                mu = 5 / h;  // Penalty parameter
-
-                for (unsigned int q_index : fe_face_values.quadrature_point_indices()) {
-                    const auto x_q = fe_face_values.quadrature_point(q_index);
-
-                    for (const unsigned int i : fe_face_values.dof_indices()) {
-                        const double phi_i_val = fe_face_values.shape_value(i, q_index);
-
-                        for (const unsigned int j : fe_face_values.dof_indices()) {
-                            const double phi_j_val = fe_face_values.shape_value(j, q_index);
-
-                            cell_matrix(i, j) +=
-                                    ((mu * phi_i_val * phi_j_val               // mu * phi_i(x_q) * phi_j(x_q)
-                                      -
-                                      fe_face_values.normal_vector(q_index) *  // n
-                                      fe_face_values.shape_grad(i, q_index) *  // grad phi_i(x_q)
-                                      phi_j_val                                // phi_j(x_q)
-                                      -
-                                      phi_i_val *                              // phi_i(x_q)
-                                      fe_face_values.normal_vector(q_index) *  // n
-                                      fe_face_values.shape_grad(j, q_index)    // grad phi_j(x_q)
-                                     ) * fe_face_values.JxW(q_index));
-                        }
-
-                        cell_rhs(i) +=
-                                ((mu * boundary_values.value(x_q) *       // mu * g(x_q)
-                                  phi_i_val                               // phi_i(x_q)
-                                  -
-                                  boundary_values.value(x_q) *            // g(x_q)
-                                  fe_face_values.normal_vector(q_index) * // n
-                                  fe_face_values.shape_grad(i, q_index)   // grad phi_i(x_q)
-                                 ) * fe_face_values.JxW(q_index));        // dx
-                    }
-                }
             }
         }
 
@@ -232,10 +192,21 @@ void PoissonNitsche<dim>::assemble_system() {
             system_rhs(local_dof_indices[i]) += cell_rhs(i);
         }
     }
+
+    std::map<types::global_dof_index, double> boundary_values;
+    VectorTools::interpolate_boundary_values(dof_handler,
+                                             0,
+                                             BoundaryValues<dim>(),
+                                             boundary_values);
+    MatrixTools::apply_boundary_values(boundary_values,
+                                       system_matrix,
+                                       solution,
+                                       system_rhs);
+
 }
 
 template<int dim>
-void PoissonNitsche<dim>::solve() {
+void Poisson<dim>::solve() {
     SolverControl solver_control(1000, 1e-12);
     SolverCG<Vector<double>> solver(solver_control);
     solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
@@ -244,17 +215,17 @@ void PoissonNitsche<dim>::solve() {
 }
 
 template<int dim>
-void PoissonNitsche<dim>::output_results() const {
+void Poisson<dim>::output_results() const {
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler);
     data_out.add_data_vector(solution, "solution");
     data_out.build_patches();
-    std::ofstream out(dim == 2 ? "solution-2d.vtk" : "solution-3d.vtk");
+    std::ofstream out(dim == 2 ? "poisson-2d.vtk" : "poisson-3d.vtk");
     data_out.write_vtk(out);
 }
 
 template<int dim>
-void PoissonNitsche<dim>::run() {
+void Poisson<dim>::run() {
     make_grid();
     setup_system();
     assemble_system();
@@ -265,7 +236,7 @@ void PoissonNitsche<dim>::run() {
 int main() {
     std::cout << "PoissonNitsche" << std::endl;
     {
-        PoissonNitsche<2> poissonNitsche(1);
-        poissonNitsche.run();
+        Poisson<2> poisson(1);
+        poisson.run();
     }
 }
