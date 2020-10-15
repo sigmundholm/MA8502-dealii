@@ -1,0 +1,2 @@
+add_executable(advection-diffusion advection_diffusion.cpp)
+deal_ii_setup_target(advection-diffusion)
