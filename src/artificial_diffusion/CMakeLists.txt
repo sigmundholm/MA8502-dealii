@@ -1,0 +1,2 @@
+add_executable(artificial-diffusion artificial_diffusion.cc)
+deal_ii_setup_target(artificial-diffusion)
