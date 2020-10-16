@@ -61,7 +61,8 @@ private:
     Vector<double> solution;
     Vector<double> system_rhs;
 
-    double eps = 0.01;
+    double eps = 0.1;
+    double alpha = 0;
 };
 
 // Functions for right hand side and boundary values.
@@ -84,15 +85,25 @@ public:
 template<int dim>
 double
 RightHandSide<dim>::value(const Point<dim> &p, const unsigned int) const {
-    (void) p;
-    return 1;
+    // (void) p;
+    double pi = 3.14159265;
+    double x = p[0];
+    double y = p[1];
+    double eps = 0.1;
+    return -eps * (-1.0 * pi * pi * sin(pi * y) * cos(pi * x) +
+                   exp((y - 1) / eps) / (eps * eps * (1 - exp(-2 / eps)))) +
+           0.5 * pi * cos(pi * x) * cos(pi * y) +
+           exp((y - 1) / eps) / (eps * (1 - exp(-2 / eps)));
 }
 
 template<int dim>
 double
 BoundaryValues<dim>::value(const Point<dim> &p, const unsigned int) const {
-    (void) p;
-    return 0;
+    double pi = 3.14159265;
+    double x = p[0];
+    double y = p[1];
+    double eps = 0.1;
+    return 0.5*sin(pi*y)*cos(pi*x) + cos(pi * x) * (1- exp((y - 1)/eps))/(1 - exp(-2/eps));
 }
 
 
@@ -145,6 +156,17 @@ void PoissonNitsche<dim>::setup_system() {
     dof_handler.distribute_dofs(fe);
     std::cout << "  Number of degrees of freedom: " << dof_handler.n_dofs()
               << std::endl;
+    // Find h
+    double h;
+    for (const auto &cell : dof_handler.active_cell_iterators()) {
+        for (const auto &face : cell->face_iterators()) {
+            double h_k = std::pow(face->measure(), 1.0 / (dim - 1));
+            if (h_k > h) {
+                h = h_k;
+            }
+        }
+    }
+    alpha = h;
 
     DoFRenumbering::Cuthill_McKee(dof_handler);
     DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
@@ -184,7 +206,7 @@ void PoissonNitsche<dim>::assemble_system() {
             for (const unsigned int i : fe_values.dof_indices()) {
                 for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
-                            (eps * fe_values.shape_grad(i, q_index)
+                            ((eps + alpha) * fe_values.shape_grad(i, q_index)
                              * fe_values.shape_grad(j, q_index)
                              +
                              (vector_field.value(x_q)
