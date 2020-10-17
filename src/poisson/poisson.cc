@@ -22,8 +22,10 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/sparse_direct.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
+
 
 #include <iostream>
 
@@ -151,11 +153,9 @@ void Poisson<dim>::assemble_system() {
 
 template<int dim>
 void Poisson<dim>::solve() {
-    SolverControl solver_control(1000, 1e-12);
-    SolverCG<Vector<double>> solver(solver_control);
-    solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-    std::cout << "  " << solver_control.last_step()
-              << " CG iterations needed to obtain convergence." << std::endl;
+    SparseDirectUMFPACK inverse;
+    inverse.initialize(system_matrix);
+    inverse.vmult(solution, system_rhs);
 }
 
 template<int dim>
@@ -163,6 +163,14 @@ void Poisson<dim>::output_results() const {
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler);
     data_out.add_data_vector(solution, "solution");
+
+    Vector<double> exact_solution(solution.size());
+    VectorTools::interpolate(dof_handler, *analytical_solution, exact_solution);
+    Vector<double> diff = exact_solution;
+    diff -= solution;
+    data_out.add_data_vector(diff, "diff");
+    data_out.add_data_vector(exact_solution, "exact");
+
     data_out.build_patches();
     std::ofstream out("results.vtk");
     data_out.write_vtk(out);
