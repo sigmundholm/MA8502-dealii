@@ -38,9 +38,9 @@ using namespace dealii;
 template<int dim>
 Poisson<dim>::Poisson(const unsigned int degree,
                       const unsigned int n_refines,
-                      RightHandSide<dim> &rhs,
-                      BoundaryValues<dim> &bdd_values,
-                      AnalyticalSolution <dim> &analytical_soln)
+                      Function<dim> &rhs,
+                      Function<dim> &bdd_values,
+                      Function<dim> &analytical_soln)
         : fe(degree), dof_handler(triangulation), n_refines(n_refines) {
             rhs_function = &rhs;
             boundary_values = &bdd_values;

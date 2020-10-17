@@ -17,18 +17,18 @@ class Poisson {
 public:
     Poisson(const unsigned int degree,
             const unsigned int n_refines,
-            RightHandSide<dim> &rhs,
-            BoundaryValues<dim> &bdd_values,
-            AnalyticalSolution<dim> &analytical_soln);
+            Function<dim> &rhs,
+            Function<dim> &bdd_values,
+            Function<dim> &analytical_soln);
 
     void run();
 
-private:
+protected:
     void make_grid();
 
     void setup_system();
 
-    void assemble_system();
+    virtual void assemble_system();
 
     void solve();
 
@@ -44,9 +44,9 @@ private:
 
     unsigned int n_refines;
 
-    RightHandSide<dim> *rhs_function;
-    BoundaryValues<dim> *boundary_values;
-    AnalyticalSolution<dim> *analytical_solution;
+    Function<dim> *rhs_function;
+    Function<dim> *boundary_values;
+    Function<dim> *analytical_solution;
 
 };
 
