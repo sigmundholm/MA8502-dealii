@@ -5,6 +5,7 @@
 
 #include "poisson.h"
 
+using namespace dealii;
 
 
 int main() {

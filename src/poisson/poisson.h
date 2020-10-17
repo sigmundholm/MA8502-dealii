@@ -1,10 +1,13 @@
-//
-// Created by Sigmund Eggen Holm on 17/10/2020.
-//
-
 #ifndef MA8502_PROJECT_POISSON_H
 #define MA8502_PROJECT_POISSON_H
 
+#include <deal.II/grid/tria.h>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/fe/fe_q.h>
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/vector.h>
+
+#include "rhs.h"
 
 using namespace dealii;
 

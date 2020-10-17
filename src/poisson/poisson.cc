@@ -2,11 +2,8 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
-#include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/dofs/dof_renumbering.h>
 
@@ -28,7 +25,6 @@
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 
-#include <fstream>
 #include <iostream>
 
 #include "poisson.h"
@@ -181,12 +177,3 @@ void Poisson<dim>::run() {
 
 template
 class Poisson<2>;
-
-
-int main() {
-    std::cout << "PoissonNitsche" << std::endl;
-    {
-        Poisson<2> poisson(1);
-        poisson.run();
-    }
-}
