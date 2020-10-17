@@ -23,7 +23,7 @@ public:
 
 
 template<int dim>
-class AnalyticSolution : public Function<dim> {
+class AnalyticalSolution : public Function<dim> {
 public:
     virtual double
     value(const Point<dim> &p, const unsigned int component = 0) const override;

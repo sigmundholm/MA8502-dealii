@@ -15,7 +15,11 @@ using namespace dealii;
 template<int dim>
 class Poisson {
 public:
-    Poisson(const unsigned int degree);
+    Poisson(const unsigned int degree,
+            const unsigned int n_refines,
+            RightHandSide<dim> &rhs,
+            BoundaryValues<dim> &bdd_values,
+            AnalyticalSolution<dim> &analytical_soln);
 
     void run();
 
@@ -37,6 +41,13 @@ private:
     SparseMatrix<double> system_matrix;
     Vector<double> solution;
     Vector<double> system_rhs;
+
+    unsigned int n_refines;
+
+    RightHandSide<dim> *rhs_function;
+    BoundaryValues<dim> *boundary_values;
+    AnalyticalSolution<dim> *analytical_solution;
+
 };
 
 

@@ -34,8 +34,16 @@ using namespace dealii;
 
 
 template<int dim>
-Poisson<dim>::Poisson(const unsigned int degree)
-        : fe(degree), dof_handler(triangulation) {}
+Poisson<dim>::Poisson(const unsigned int degree,
+                      const unsigned int n_refines,
+                      RightHandSide<dim> &rhs,
+                      BoundaryValues<dim> &bdd_values,
+                      AnalyticalSolution <dim> &analytical_soln)
+        : fe(degree), dof_handler(triangulation), n_refines(n_refines) {
+            rhs_function = &rhs;
+            boundary_values = &bdd_values;
+            analytical_solution = &analytical_soln;
+        }
 
 
 template<int dim>
@@ -44,10 +52,7 @@ void Poisson<dim>::make_grid() {
     Point<dim> p1(-1, -1);
     Point<dim> p2(1, 1);
     GridGenerator::hyper_rectangle(triangulation, p1, p2);
-    GridTools::remove_anisotropy(triangulation, 1.618, 5);
-    triangulation.refine_global(dim == 2 ? 2 : 0);
-
-    triangulation.refine_global(dim == 2 ? 3 : 1);
+    triangulation.refine_global(n_refines);
 
     // Write svg of grid to file.
     if (dim == 2) {
@@ -84,8 +89,6 @@ void Poisson<dim>::assemble_system() {
     QGauss<dim> quadrature_formula(fe.degree + 1);
     QGauss<dim - 1> face_quadrature_formula(fe.degree + 1);
 
-    RightHandSide<dim> right_hand_side;
-
     FEValues<dim> fe_values(fe,
                             quadrature_formula,
                             update_values | update_gradients |
@@ -116,7 +119,7 @@ void Poisson<dim>::assemble_system() {
                 const auto x_q = fe_values.quadrature_point(q_index);
                 cell_rhs(i) += (fe_values.shape_value(i, q_index) *
                                 // phi_i(x_q)
-                                right_hand_side.value(x_q) *         // f(x_q)
+                                rhs_function->value(x_q) *         // f(x_q)
                                 fe_values.JxW(q_index));             // dx
             }
         }
@@ -134,12 +137,12 @@ void Poisson<dim>::assemble_system() {
         }
     }
 
-    std::map<types::global_dof_index, double> boundary_values;
+    std::map<types::global_dof_index, double> index2bdd_values;
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
-                                             BoundaryValues<dim>(),
-                                             boundary_values);
-    MatrixTools::apply_boundary_values(boundary_values,
+                                             *boundary_values,
+                                             index2bdd_values);
+    MatrixTools::apply_boundary_values(index2bdd_values,
                                        system_matrix,
                                        solution,
                                        system_rhs);

@@ -22,7 +22,7 @@ BoundaryValues<dim>::value(const Point<dim> &p, const unsigned int) const {
 
 
 template<int dim>
-double AnalyticSolution<dim>::
+double AnalyticalSolution<dim>::
 value(const Point<dim> &p, const unsigned int) const {
     (void) p;
     return 0;
@@ -36,4 +36,4 @@ template
 class BoundaryValues<2>;
 
 template
-class AnalyticSolution<2>;
+class AnalyticalSolution<2>;
