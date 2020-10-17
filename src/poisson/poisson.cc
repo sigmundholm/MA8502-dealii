@@ -31,65 +31,10 @@
 #include <fstream>
 #include <iostream>
 
+#include "poisson.h"
+#include "rhs.h"
+
 using namespace dealii;
-
-template<int dim>
-class Poisson {
-public:
-    Poisson(const unsigned int degree);
-
-    void run();
-
-private:
-    void make_grid();
-
-    void setup_system();
-
-    void assemble_system();
-
-    void solve();
-
-    void output_results() const;
-
-    Triangulation<dim> triangulation;
-    FE_Q<dim> fe;
-    DoFHandler<dim> dof_handler;
-    SparsityPattern sparsity_pattern;
-    SparseMatrix<double> system_matrix;
-    Vector<double> solution;
-    Vector<double> system_rhs;
-};
-
-// Functions for right hand side and boundary values.
-
-template<int dim>
-class RightHandSide : public Function<dim> {
-public:
-    virtual double
-    value(const Point<dim> &p, const unsigned int component = 0) const override;
-};
-
-template<int dim>
-class BoundaryValues : public Function<dim> {
-public:
-    virtual double
-    value(const Point<dim> &p, const unsigned int component = 0) const override;
-};
-
-
-template<int dim>
-double
-RightHandSide<dim>::value(const Point<dim> &p, const unsigned int) const {
-    (void) p;
-    return 1;
-}
-
-template<int dim>
-double
-BoundaryValues<dim>::value(const Point<dim> &p, const unsigned int) const {
-    (void) p;
-    return p[0];
-}
 
 
 template<int dim>
@@ -220,7 +165,7 @@ void Poisson<dim>::output_results() const {
     data_out.attach_dof_handler(dof_handler);
     data_out.add_data_vector(solution, "solution");
     data_out.build_patches();
-    std::ofstream out(dim == 2 ? "poisson-2d.vtk" : "poisson-3d.vtk");
+    std::ofstream out("results.vtk");
     data_out.write_vtk(out);
 }
 
@@ -232,6 +177,11 @@ void Poisson<dim>::run() {
     solve();
     output_results();
 }
+
+
+template
+class Poisson<2>;
+
 
 int main() {
     std::cout << "PoissonNitsche" << std::endl;
