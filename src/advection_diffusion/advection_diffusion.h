@@ -17,9 +17,9 @@ public:
                        Function<dim> &analytical_soln);
 
 private:
-    void assemble_system();
+    void assemble_system() override;
 
-    double eps = 0.01;
+    double eps = 1;
 };
 
 
