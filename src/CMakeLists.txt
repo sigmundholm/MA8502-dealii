@@ -1,4 +1,5 @@
 add_subdirectory(advection_diffusion)
 add_subdirectory(artificial_diffusion)
+add_subdirectory(streamline_diffusion)
 add_subdirectory(examples)
 add_subdirectory(poisson)
