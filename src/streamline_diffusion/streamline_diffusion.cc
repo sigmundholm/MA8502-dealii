@@ -61,7 +61,8 @@ void StreamlineDiffusion<dim>::assemble_system() {
         cell_matrix = 0;
         cell_rhs = 0;
 
-        double delta_T = 1;  // TODO
+        double mu_in = 1;  // TODO
+        double delta_T = 0.5 * this->h * this->h / (eps * mu_in);
 
         // Integrate the contribution from the interior of each cell
         for (const unsigned int q_index : fe_values.quadrature_point_indices()) {
