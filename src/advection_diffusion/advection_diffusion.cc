@@ -125,7 +125,7 @@ int main() {
         BoundaryValuesAD<2> bdd_values;
         AnalyticalSolutionAD<2> exact;
 
-        AdvectionDiffusion<2> advection_diffusion(1, 5, rhs, bdd_values, exact);
+        AdvectionDiffusion<2> advection_diffusion(1, 7, rhs, bdd_values, exact);
         advection_diffusion.run();
     }
 }
