@@ -43,6 +43,7 @@ protected:
     Vector<double> system_rhs;
 
     unsigned int n_refines;
+    double h;
 
     Function<dim> *rhs_function;
     Function<dim> *boundary_values;

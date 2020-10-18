@@ -75,6 +75,17 @@ void Poisson<dim>::setup_system() {
     std::cout << "  Number of degrees of freedom: " << dof_handler.n_dofs()
               << std::endl;
 
+    // Find h
+    for (const auto &cell : dof_handler.active_cell_iterators()) {
+        for (const auto &face : cell->face_iterators()) {
+            double h_k = std::pow(face->measure(), 1.0 / (dim - 1));
+            if (h_k > h) {
+                h = h_k;
+            }
+        }
+    }
+    std::cout << "  h = " << std::to_string(h) << std::endl;
+
     DoFRenumbering::Cuthill_McKee(dof_handler);
     DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
     DoFTools::make_sparsity_pattern(dof_handler, dsp);
