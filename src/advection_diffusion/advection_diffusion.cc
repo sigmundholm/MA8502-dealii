@@ -1,20 +1,13 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
-#include <deal.II/grid/grid_tools.h>
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
-#include <deal.II/dofs/dof_renumbering.h>
 
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/base/function.h>
-#include <deal.II/base/tensor_function.h>
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/quadrature_lib.h>
 
@@ -22,15 +15,11 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/precondition.h>
-#include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/sparse_direct.h>
-#include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 
-#include <fstream>
 #include <iostream>
 
 #include "rhs_ad.h"
@@ -44,17 +33,19 @@ template<int dim>
 AdvectionDiffusion<dim>::
 AdvectionDiffusion(const unsigned int degree,
                    const unsigned int n_refines,
+                   const double eps,
                    Function<dim> &rhs,
                    Function<dim> &bdd_values,
                    Function<dim> &analytical_soln)
-        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln) {}
+        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln),
+          eps(eps) {}
 
 
 template<int dim>
 void AdvectionDiffusion<dim>::assemble_system() {
     QGauss<dim> quadrature_formula((this->fe).degree + 1);
 
-    VectorField <dim> vector_field;
+    VectorField<dim> vector_field;
 
     FEValues<dim> fe_values(this->fe,
                             quadrature_formula,
@@ -86,9 +77,8 @@ void AdvectionDiffusion<dim>::assemble_system() {
                 }
 
                 // RHS
-                const auto x_q = fe_values.quadrature_point(q_index);
                 cell_rhs(i) += (fe_values.shape_value(i, q_index) *  // phi_i
-                                this->rhs_function->value(x_q) *         // f(x_q)
+                                this->rhs_function->value(x_q) *     // f(x_q)
                                 fe_values.JxW(q_index));             // dx
             }
         }
@@ -121,11 +111,12 @@ void AdvectionDiffusion<dim>::assemble_system() {
 int main() {
     std::cout << "PoissonNitsche" << std::endl;
     {
-        RightHandSideAD<2> rhs;
-        BoundaryValuesAD<2> bdd_values;
-        AnalyticalSolutionAD<2> exact;
+        double eps = 1;
+        RightHandSideAD<2> rhs(eps);
+        BoundaryValuesAD<2> bdd_values(eps);
+        AnalyticalSolutionAD<2> exact(eps);
 
-        AdvectionDiffusion<2> advection_diffusion(1, 7, rhs, bdd_values, exact);
+        AdvectionDiffusion<2> advection_diffusion(1, 7, eps, rhs, bdd_values, exact);
         advection_diffusion.run();
     }
 }

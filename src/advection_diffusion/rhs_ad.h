@@ -12,24 +12,39 @@ using namespace dealii;
 template<int dim>
 class RightHandSideAD : public Function<dim> {
 public:
+    RightHandSideAD(double eps);
+
     virtual double
     value(const Point<dim> &p, const unsigned int component = 0) const override;
+
+private:
+    const double eps;
 };
 
 
 template<int dim>
 class BoundaryValuesAD : public Function<dim> {
 public:
+    BoundaryValuesAD(double eps);
+
     virtual double
     value(const Point<dim> &p, const unsigned int component = 0) const override;
+
+private:
+    const double eps;
 };
 
 
 template<int dim>
 class AnalyticalSolutionAD : public Function<dim> {
 public:
+    AnalyticalSolutionAD(double eps);
+
     virtual double
     value(const Point<dim> &p, const unsigned int component = 0) const override;
+
+private:
+    const double eps;
 };
 
 

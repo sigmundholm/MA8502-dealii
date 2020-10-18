@@ -12,6 +12,7 @@ class AdvectionDiffusion : public Poisson<dim> {
 public:
     AdvectionDiffusion(const unsigned int degree,
                        const unsigned int n_refines,
+                       const double eps,
                        Function<dim> &rhs,
                        Function<dim> &bdd_values,
                        Function<dim> &analytical_soln);
