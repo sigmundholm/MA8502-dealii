@@ -41,7 +41,8 @@ Poisson<dim>::Poisson(const unsigned int degree,
                       Function<dim> &rhs,
                       Function<dim> &bdd_values,
                       Function<dim> &analytical_soln)
-        : fe(degree), dof_handler(triangulation), n_refines(n_refines) {
+        : fe(degree), dof_handler(triangulation), degree(degree),
+          n_refines(n_refines) {
     rhs_function = &rhs;
     boundary_values = &bdd_values;
     analytical_solution = &analytical_soln;
@@ -183,12 +184,13 @@ void Poisson<dim>::output_results() const {
     data_out.add_data_vector(exact_solution, "exact");
 
     data_out.build_patches();
-    std::ofstream out("results.vtk");
+    std::ofstream out("results-d" + std::to_string(degree) + "r" +
+                      std::to_string(n_refines) + ".vtk");
     data_out.write_vtk(out);
 }
 
 template<int dim>
-void Poisson<dim>::run() {
+Error Poisson<dim>::run() {
     make_grid();
     setup_system();
     assemble_system();
@@ -199,6 +201,8 @@ void Poisson<dim>::run() {
     std::cout << "    L2 = " << error.l2_error << std::endl;
     std::cout << "    H1 = " << error.h1_error << std::endl;
     std::cout << "    H1-semi = " << error.h1_semi << std::endl;
+
+    return error;
 }
 
 
@@ -267,7 +271,7 @@ void Poisson<dim>::
 write_error_to_file(Error &error, std::ofstream &file) {
     file << error.mesh_size << ","
          << error.l2_error << ","
-         << error.l2_error << ","
+         << error.h1_error << ","
          << error.h1_semi << std::endl;
 }
 

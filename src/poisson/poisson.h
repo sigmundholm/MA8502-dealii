@@ -30,7 +30,7 @@ public:
             Function<dim> &bdd_values,
             Function<dim> &analytical_soln);
 
-    void run();
+    Error run();
 
     Error compute_error();
 
@@ -57,6 +57,7 @@ protected:
     Vector<double> solution;
     Vector<double> system_rhs;
 
+    unsigned int degree;
     unsigned int n_refines;
     double h;
 
