@@ -198,7 +198,7 @@ void Poisson<dim>::run() {
     Error error = compute_error();
     std::cout << "    L2 = " << error.l2_error << std::endl;
     std::cout << "    H1 = " << error.h1_error << std::endl;
-    std::cout << "    H1 (semi) = " << error.h1_semi << std::endl;
+    std::cout << "    H1-semi = " << error.h1_semi << std::endl;
 }
 
 

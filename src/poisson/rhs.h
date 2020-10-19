@@ -33,11 +33,5 @@ public:
 };
 
 
-struct Error {
-    double mesh_size = 0;
-    double l2_error = 0;
-    double h1_error = 0;
-    double h1_semi = 0;
-};
 
 #endif //MA8502_PROJECT_RHS_H
