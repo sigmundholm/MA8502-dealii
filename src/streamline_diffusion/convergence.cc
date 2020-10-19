@@ -25,7 +25,6 @@ solve_for_element_order(const int element_order, int max_refinement,
                                      rhs, bdd_values, analytical_solution);
         Error error = fem.run();
         std::cout << "|| u - u_h ||_L2 = " << error.l2_error << std::endl;
-        std::cout << "|| p - p_h ||_L2 = " << error.l2_error << std::endl;
         StreamlineDiffusion<dim>::write_error_to_file(error, file);
     }
 }
@@ -43,6 +42,6 @@ void run_convergence_test(const std::vector<int> orders, int max_refinement,
 
 int main() {
     double eps = 0.1;
-    run_convergence_test<2>({1}, 6, eps);
+    run_convergence_test<2>({2}, 6, eps);
 
 }

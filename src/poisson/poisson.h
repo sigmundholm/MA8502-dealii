@@ -59,7 +59,7 @@ protected:
 
     unsigned int degree;
     unsigned int n_refines;
-    double h;
+    double h = 0;
 
     Function<dim> *rhs_function;
     Function<dim> *boundary_values;
