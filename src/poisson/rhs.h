@@ -27,6 +27,17 @@ class AnalyticalSolution : public Function<dim> {
 public:
     virtual double
     value(const Point<dim> &p, const unsigned int component = 0) const override;
+
+    virtual Tensor<1, dim>
+    gradient(const Point<dim> &p, const unsigned int component = 0) const override;
+};
+
+
+struct Error {
+    double mesh_size = 0;
+    double l2_error = 0;
+    double h1_error = 0;
+    double h1_semi = 0;
 };
 
 #endif //MA8502_PROJECT_RHS_H

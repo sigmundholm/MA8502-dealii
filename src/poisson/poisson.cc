@@ -42,10 +42,10 @@ Poisson<dim>::Poisson(const unsigned int degree,
                       Function<dim> &bdd_values,
                       Function<dim> &analytical_soln)
         : fe(degree), dof_handler(triangulation), n_refines(n_refines) {
-            rhs_function = &rhs;
-            boundary_values = &bdd_values;
-            analytical_solution = &analytical_soln;
-        }
+    rhs_function = &rhs;
+    boundary_values = &bdd_values;
+    analytical_solution = &analytical_soln;
+}
 
 
 template<int dim>
@@ -194,6 +194,81 @@ void Poisson<dim>::run() {
     assemble_system();
     solve();
     output_results();
+
+    Error error = compute_error();
+    std::cout << "    L2 = " << error.l2_error << std::endl;
+    std::cout << "    H1 = " << error.h1_error << std::endl;
+    std::cout << "    H1 (semi) = " << error.h1_semi << std::endl;
+}
+
+
+template<int dim>
+Error Poisson<dim>::
+compute_error() {
+    std::cout << "  Compute error" << std::endl;
+
+    QGauss<dim> quadrature_formula(fe.degree + 1);
+    FEValues<dim> fe_values(fe,
+                            quadrature_formula,
+                            update_values | update_gradients |
+                            update_quadrature_points | update_JxW_values);
+
+    double l2_error_integral = 0;
+    double h1_semi_error_integral = 0;
+
+    // Numerical solution values and gradients
+    std::vector<double> solution_values(fe_values.n_quadrature_points);
+    std::vector<Tensor<1, dim>> gradients(fe_values.n_quadrature_points);
+
+    // Exact solution values and gradients
+    std::vector<double> exact_solution(fe_values.n_quadrature_points);
+    std::vector<Tensor<1, dim>> exact_gradients(fe_values.n_quadrature_points);
+
+    for (const auto &cell : this->dof_handler.active_cell_iterators()) {
+        fe_values.reinit(cell);
+
+        // Numerical solution
+        fe_values.get_function_gradients(solution, gradients);
+        fe_values.get_function_values(solution, solution_values);
+
+        // Exact solution
+        analytical_solution->value_list(fe_values.get_quadrature_points(),
+                                        exact_solution);
+        analytical_solution->gradient_list(fe_values.get_quadrature_points(),
+                                           exact_gradients);
+
+        for (unsigned int q = 0; q < fe_values.n_quadrature_points; ++q) {
+            double diff_values = exact_solution[q] - solution_values[q];
+            Tensor<1, dim> diff_grad = exact_gradients[q] - gradients[q];
+
+            l2_error_integral += diff_values * diff_values * fe_values.JxW(q);
+            h1_semi_error_integral += diff_grad * diff_grad * fe_values.JxW(q);
+        }
+    }
+
+    Error error;
+    error.mesh_size = h;
+    error.l2_error = pow(l2_error_integral, 0.5);
+    error.h1_semi = pow(h1_semi_error_integral, 0.5);
+    error.h1_error = pow(l2_error_integral + h1_semi_error_integral, 0.5);
+    return error;
+}
+
+
+template<int dim>
+void Poisson<dim>::
+write_header_to_file(std::ofstream &file) {
+    file << "mesh_size, e_L2, e_H1, e_H1-semi" << std::endl;
+}
+
+
+template<int dim>
+void Poisson<dim>::
+write_error_to_file(Error &error, std::ofstream &file) {
+    file << error.mesh_size << ","
+         << error.l2_error << ","
+         << error.l2_error << ","
+         << error.h1_semi << std::endl;
 }
 
 

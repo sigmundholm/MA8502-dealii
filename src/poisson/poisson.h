@@ -23,6 +23,12 @@ public:
 
     void run();
 
+    Error compute_error();
+
+    static void write_header_to_file(std::ofstream &file);
+
+    static void write_error_to_file(Error &error, std::ofstream &file);
+
 protected:
     void make_grid();
 

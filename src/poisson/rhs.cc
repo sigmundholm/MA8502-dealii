@@ -28,6 +28,16 @@ value(const Point<dim> &p, const unsigned int) const {
     return 0;
 }
 
+template<int dim>
+Tensor<1, dim> AnalyticalSolution<dim>::
+gradient(const Point<dim> &p, const unsigned int) const {
+    (void) p;
+    Tensor<1, dim> value;
+    value[0] = 0;
+    value[1] = 0;
+    return value;
+}
+
 
 template
 class RightHandSide<2>;
