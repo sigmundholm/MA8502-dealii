@@ -40,7 +40,7 @@ public:
     static void write_error_to_file(Error &error, std::ofstream &file);
 
 protected:
-    void make_grid();
+    virtual void make_grid();
 
     void setup_system();
 

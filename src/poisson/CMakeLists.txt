@@ -5,3 +5,7 @@ target_link_libraries(base cutfem)
 add_executable(poisson run.cc)
 deal_ii_setup_target(poisson)
 target_link_libraries(poisson base cutfem)
+
+add_executable(error error.cc)
+deal_ii_setup_target(error)
+target_link_libraries(error base cutfem)
