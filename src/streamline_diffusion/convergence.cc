@@ -42,6 +42,6 @@ void run_convergence_test(const std::vector<int> orders, int max_refinement,
 
 int main() {
     double eps = 0.1;
-    run_convergence_test<2>({2}, 6, eps);
+    run_convergence_test<2>({2, 3}, 6, eps);
 
 }

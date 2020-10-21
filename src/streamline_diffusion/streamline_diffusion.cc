@@ -36,8 +36,9 @@ StreamlineDiffusion(const unsigned int degree,
                     Function<dim> &rhs,
                     Function<dim> &bdd_values,
                     Function<dim> &analytical_soln)
-        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln),
-          eps(eps) {}
+        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln) {
+    this->eps = eps;
+}
 
 
 template<int dim>
@@ -62,7 +63,7 @@ void StreamlineDiffusion<dim>::assemble_system() {
         cell_rhs = 0;
 
         double mu_in = 1;  // TODO
-        double delta_T = 0.5 * this->h * this->h / (eps * mu_in);
+        double delta_T = 0.5 * this->h * this->h / (this->eps * mu_in);
 
         // Integrate the contribution from the interior of each cell
         for (const unsigned int q_index : fe_values.quadrature_point_indices()) {
@@ -77,7 +78,7 @@ void StreamlineDiffusion<dim>::assemble_system() {
 
                 for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
-                            (eps * fe_values.shape_grad(i, q_index)
+                            (this->eps * fe_values.shape_grad(i, q_index)
                              * fe_values.shape_grad(j, q_index)
                              +
                              (vector_field.value(x_q)
@@ -85,7 +86,7 @@ void StreamlineDiffusion<dim>::assemble_system() {
                              * fe_values.shape_value(j, q_index)
                              +
                              delta_T
-                             * (-eps * laplacian
+                             * (-this->eps * laplacian
                                 * (b_q * fe_values.shape_grad(j, q_index))
                                 +
                                 (b_q * fe_values.shape_grad(i, q_index))

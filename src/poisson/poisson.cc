@@ -21,14 +21,13 @@
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/precondition.h>
-#include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/sparse_direct.h>
-#include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 
 
 #include <iostream>
 
+#include "../advection_diffusion/rhs_ad.h"
 #include "poisson.h"
 #include "rhs.h"
 
@@ -201,6 +200,7 @@ Error Poisson<dim>::run() {
     std::cout << "    L2 = " << error.l2_error << std::endl;
     std::cout << "    H1 = " << error.h1_error << std::endl;
     std::cout << "    H1-semi = " << error.h1_semi << std::endl;
+    std::cout << "    SD = " << error.sd_error << std::endl;
 
     return error;
 }
@@ -219,6 +219,9 @@ compute_error() {
 
     double l2_error_integral = 0;
     double h1_semi_error_integral = 0;
+    double l2_convection_integral = 0;
+
+    VectorField<dim> vector_field;
 
     // Numerical solution values and gradients
     std::vector<double> solution_values(fe_values.n_quadrature_points);
@@ -241,12 +244,22 @@ compute_error() {
         analytical_solution->gradient_list(fe_values.get_quadrature_points(),
                                            exact_gradients);
 
+        double mu_in = 1;  // TODO
+        double delta_T = 0.5 * h * h / (eps * mu_in);
+
         for (unsigned int q = 0; q < fe_values.n_quadrature_points; ++q) {
+            Point<dim> x_q = fe_values.quadrature_point(q);
+            Tensor<1, dim> b_q = vector_field.value(x_q);
+
             double diff_values = exact_solution[q] - solution_values[q];
             Tensor<1, dim> diff_grad = exact_gradients[q] - gradients[q];
+            double b_diff_grad = b_q * diff_grad;
 
             l2_error_integral += diff_values * diff_values * fe_values.JxW(q);
             h1_semi_error_integral += diff_grad * diff_grad * fe_values.JxW(q);
+            l2_convection_integral +=
+                    delta_T * pow(b_diff_grad, 2) * fe_values.JxW(q);
+
         }
     }
 
@@ -255,6 +268,8 @@ compute_error() {
     error.l2_error = pow(l2_error_integral, 0.5);
     error.h1_semi = pow(h1_semi_error_integral, 0.5);
     error.h1_error = pow(l2_error_integral + h1_semi_error_integral, 0.5);
+    error.sd_error = pow(eps * h1_semi_error_integral + l2_convection_integral,
+                         0.5);
     return error;
 }
 
@@ -262,7 +277,7 @@ compute_error() {
 template<int dim>
 void Poisson<dim>::
 write_header_to_file(std::ofstream &file) {
-    file << "mesh_size, e_L2, e_H1, e_H1-semi" << std::endl;
+    file << "h, e_{L2}, e_{H1}, e_{H1-semi}, e_{SD}" << std::endl;
 }
 
 
@@ -272,7 +287,8 @@ write_error_to_file(Error &error, std::ofstream &file) {
     file << error.mesh_size << ","
          << error.l2_error << ","
          << error.h1_error << ","
-         << error.h1_semi << std::endl;
+         << error.h1_semi << ","
+         << error.sd_error << std::endl;
 }
 
 

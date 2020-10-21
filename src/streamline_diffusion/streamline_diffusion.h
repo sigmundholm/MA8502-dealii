@@ -20,7 +20,7 @@ public:
 private:
     void assemble_system() override;
 
-    double eps = 1;
+    // double eps = 1;
 };
 
 

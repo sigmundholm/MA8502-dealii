@@ -1,6 +1,3 @@
-//
-// Created by Sigmund Eggen Holm on 17/10/2020.
-//
 #include <iostream>
 
 #include "poisson.h"

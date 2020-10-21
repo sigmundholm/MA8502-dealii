@@ -18,6 +18,7 @@ struct Error {
     double l2_error = 0;
     double h1_error = 0;
     double h1_semi = 0;
+    double sd_error = 0;
 };
 
 
@@ -61,10 +62,12 @@ protected:
     unsigned int n_refines;
     double h = 0;
 
+    double eps = 1;
+
     Function<dim> *rhs_function;
     Function<dim> *boundary_values;
     Function<dim> *analytical_solution;
-
+    // TensorFunction<1, dim> *vector_field;
 };
 
 
