@@ -37,8 +37,9 @@ AdvectionDiffusion(const unsigned int degree,
                    Function<dim> &rhs,
                    Function<dim> &bdd_values,
                    Function<dim> &analytical_soln)
-        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln),
-          eps(eps) {}
+        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln) {
+    this->eps = eps;
+}
 
 
 template<int dim>
@@ -67,7 +68,7 @@ void AdvectionDiffusion<dim>::assemble_system() {
             for (const unsigned int i : fe_values.dof_indices()) {
                 for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
-                            (eps * fe_values.shape_grad(i, q_index)
+                            (this->eps * fe_values.shape_grad(i, q_index)
                              * fe_values.shape_grad(j, q_index)
                              +
                              (vector_field.value(x_q)
@@ -108,15 +109,6 @@ void AdvectionDiffusion<dim>::assemble_system() {
 
 }
 
-int main() {
-    std::cout << "PoissonNitsche" << std::endl;
-    {
-        double eps = 1;
-        RightHandSideAD<2> rhs(eps);
-        BoundaryValuesAD<2> bdd_values(eps);
-        AnalyticalSolutionAD<2> exact(eps);
 
-        AdvectionDiffusion<2> advection_diffusion(1, 7, eps, rhs, bdd_values, exact);
-        advection_diffusion.run();
-    }
-}
+template
+class AdvectionDiffusion<2>;
