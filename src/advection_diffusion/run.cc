@@ -9,7 +9,7 @@ int main() {
         BoundaryValuesAD<2> bdd_values(eps);
         AnalyticalSolutionAD<2> exact(eps);
 
-        AdvectionDiffusion<2> advection_diffusion(1, 7, eps, rhs, bdd_values,
+        AdvectionDiffusion<2> advection_diffusion(2, 6, eps, rhs, bdd_values,
                                                   exact);
         advection_diffusion.run();
     }

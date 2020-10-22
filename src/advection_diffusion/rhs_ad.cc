@@ -1,11 +1,7 @@
-//
-// Created by Sigmund Eggen Holm on 17/10/2020.
-//
-
 #include "rhs_ad.h"
 
-#define pi 3.14159265
-// #define eps 1
+#define pi 3.141592653589793
+
 
 template<int dim>
 RightHandSideAD<dim>::
