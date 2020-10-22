@@ -37,15 +37,16 @@ ArtificialDiffusion(const unsigned int degree,
                     Function<dim> &rhs,
                     Function<dim> &bdd_values,
                     Function<dim> &analytical_soln)
-        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln),
-          eps(eps) {}
+        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln) {
+    this->eps = eps;
+}
 
 
 template<int dim>
 void ArtificialDiffusion<dim>::assemble_system() {
     QGauss<dim> quadrature_formula((this->fe).degree + 1);
 
-    VectorField <dim> vector_field;
+    VectorField<dim> vector_field;
     double alpha = this->h;
 
     FEValues<dim> fe_values(this->fe,
@@ -65,20 +66,22 @@ void ArtificialDiffusion<dim>::assemble_system() {
         // Integrate the contribution from the interior of each cell
         for (const unsigned int q_index : fe_values.quadrature_point_indices()) {
             Point<dim> x_q = fe_values.quadrature_point(q_index);
+            Tensor<1, dim> b_q = vector_field.value(x_q);
             for (const unsigned int i : fe_values.dof_indices()) {
                 for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
-                            ((eps + alpha) * fe_values.shape_grad(i, q_index)
+                            ((this->eps + alpha) *
+                             fe_values.shape_grad(i, q_index)
                              * fe_values.shape_grad(j, q_index)
                              +
-                             (vector_field.value(x_q)
-                              * fe_values.shape_grad(i, q_index))
+                             b_q * fe_values.shape_grad(i, q_index)
                              * fe_values.shape_value(j, q_index)
                             ) * fe_values.JxW(q_index);            // dx
                 }
 
                 // RHS
-                cell_rhs(i) += (fe_values.shape_value(i, q_index) *  // phi_i
+                cell_rhs(i) += (fe_values.shape_value(i, q_index) *
+                                // phi_i(x_q)
                                 this->rhs_function->value(x_q) *     // f(x_q)
                                 fe_values.JxW(q_index));             // dx
             }
@@ -109,16 +112,6 @@ void ArtificialDiffusion<dim>::assemble_system() {
 
 }
 
-int main() {
-    std::cout << "ArtificialDiffusion" << std::endl;
-    {
-        double eps = 0.1;
-        RightHandSideAD<2> rhs(eps);
-        BoundaryValuesAD<2> bdd_values(eps);
-        AnalyticalSolutionAD<2> exact(eps);
 
-        ArtificialDiffusion<2> artificial_diffusion(1, 5, eps, rhs, bdd_values,
-                                                    exact);
-        artificial_diffusion.run();
-    }
-}
+template
+class ArtificialDiffusion<2>;
