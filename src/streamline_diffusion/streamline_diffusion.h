@@ -13,6 +13,7 @@ public:
     StreamlineDiffusion(const unsigned int degree,
                         const unsigned int n_refines,
                         const double eps,
+                        const int rho,
                         Function<dim> &rhs,
                         Function<dim> &bdd_values,
                         Function<dim> &analytical_soln);
@@ -20,7 +21,7 @@ public:
 private:
     void assemble_system() override;
 
-    // double eps = 1;
+    int rho = 1;
 };
 
 

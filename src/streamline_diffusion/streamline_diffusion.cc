@@ -33,11 +33,14 @@ StreamlineDiffusion<dim>::
 StreamlineDiffusion(const unsigned int degree,
                     const unsigned int n_refines,
                     const double eps,
+                    const int rho,
                     Function<dim> &rhs,
                     Function<dim> &bdd_values,
                     Function<dim> &analytical_soln)
-        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln) {
+        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln),
+          rho(rho) {
     this->eps = eps;
+
 }
 
 
@@ -73,10 +76,14 @@ void StreamlineDiffusion<dim>::assemble_system() {
 
             for (const unsigned int i : fe_values.dof_indices()) {
 
-                Tensor<2, dim> hessian = fe_values.shape_hessian(i, q_index);
-                double laplacian = trace(hessian);
+                Tensor<2, dim> hessian_i = fe_values.shape_hessian(i, q_index);
+                double laplacian_i = trace(hessian_i);
 
                 for (const unsigned int j : fe_values.dof_indices()) {
+                    Tensor<2, dim> hessian_j = fe_values.shape_hessian(j,
+                                                                       q_index);
+                    double laplacian_j = trace(hessian_j);
+
                     cell_matrix(i, j) +=
                             (this->eps * fe_values.shape_grad(i, q_index)
                              * fe_values.shape_grad(j, q_index)
@@ -86,11 +93,11 @@ void StreamlineDiffusion<dim>::assemble_system() {
                              * fe_values.shape_value(j, q_index)
                              +
                              delta_T
-                             * (-this->eps * laplacian
-                                * (b_q * fe_values.shape_grad(j, q_index))
-                                +
-                                (b_q * fe_values.shape_grad(i, q_index))
-                                * (b_q * fe_values.shape_grad(j, q_index))
+                             * ((-this->eps * laplacian_i
+                                 + (b_q * fe_values.shape_grad(i, q_index))
+                                ) * (-this->eps * laplacian_j
+                                     + rho * b_q *
+                                       fe_values.shape_grad(j, q_index))
                              )
                             ) * fe_values.JxW(q_index);            // dx
                 }

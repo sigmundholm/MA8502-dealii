@@ -12,7 +12,8 @@ int main() {
         BoundaryValuesAD<2> bdd_values(eps);
         AnalyticalSolutionAD<2> exact(eps);
 
-        StreamlineDiffusion<2> streamline_diffusion(2, 5, eps,
+        int rho = 1;
+        StreamlineDiffusion<2> streamline_diffusion(2, 5, eps, rho,
                                                     rhs, bdd_values, exact);
         streamline_diffusion.run();
     }
