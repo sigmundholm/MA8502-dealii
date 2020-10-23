@@ -60,13 +60,20 @@ void StreamlineDiffusion<dim>::assemble_system() {
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
     Vector<double> cell_rhs(dofs_per_cell);
 
+    double peclet_number = 1 * this->h / this->eps;
+
     for (const auto &cell : this->dof_handler.active_cell_iterators()) {
         fe_values.reinit(cell);
         cell_matrix = 0;
         cell_rhs = 0;
 
-        double mu_in = 1;  // TODO
-        double delta_T = 0.5 * this->h * this->h / (this->eps * mu_in);
+        double delta_0 = 1;
+        double delta_T = 0;
+        if (peclet_number <= 1) {
+            delta_T = delta_0 * this->h /1;
+        } else {
+            delta_T = delta_0 * pow(this->h, 2) / this->eps;
+        }
 
         // Integrate the contribution from the interior of each cell
         for (const unsigned int q_index : fe_values.quadrature_point_indices()) {
