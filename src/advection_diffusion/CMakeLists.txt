@@ -9,3 +9,7 @@ target_link_libraries(convergence-ad base cutfem)
 add_executable(tut04 tut04.cc)
 deal_ii_setup_target(tut04)
 target_link_libraries(tut04 base cutfem)
+
+add_executable(tut51 tut51.cc)
+deal_ii_setup_target(tut51)
+target_link_libraries(tut51 base cutfem)
