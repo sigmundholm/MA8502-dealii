@@ -61,19 +61,18 @@ void StreamlineDiffusion<dim>::assemble_system() {
     Vector<double> cell_rhs(dofs_per_cell);
 
     double peclet_number = 1 * this->h / this->eps;
+    double delta_0 = 0.01;
+    double delta_T = 0;
+    if (peclet_number <= 1) {
+        delta_T = delta_0 * this->h /1;
+    } else {
+        delta_T = delta_0 * pow(this->h, 2) / this->eps;
+    }
 
     for (const auto &cell : this->dof_handler.active_cell_iterators()) {
         fe_values.reinit(cell);
         cell_matrix = 0;
         cell_rhs = 0;
-
-        double delta_0 = 1;
-        double delta_T = 0;
-        if (peclet_number <= 1) {
-            delta_T = delta_0 * this->h /1;
-        } else {
-            delta_T = delta_0 * pow(this->h, 2) / this->eps;
-        }
 
         // Integrate the contribution from the interior of each cell
         for (const unsigned int q_index : fe_values.quadrature_point_indices()) {
