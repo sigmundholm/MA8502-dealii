@@ -26,10 +26,12 @@
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
+#include <deal.II/base/tensor_function.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/sparse_direct.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
@@ -83,18 +85,31 @@ public:
 };
 
 template<int dim>
+class VectorField : public TensorFunction<1, dim> {
+public:
+    Tensor<1, dim> value(const Point<dim> &p) const override;
+};
+
+
+template<int dim>
 double RightHandSide<dim>::value(const Point<dim> &p,
                                  const unsigned int /*component*/) const {
-    double return_value = 0.0;
-    for (unsigned int i = 0; i < dim; ++i)
-        return_value += 4.0 * std::pow(p(i), 4.0);
-    return return_value;
+    return 4;
 }
 
 template<int dim>
 double BoundaryValues<dim>::value(const Point<dim> &p,
                                   const unsigned int /*component*/) const {
-    return p.square();
+    return 0;
+}
+
+template<int dim>
+Tensor<1, dim> VectorField<dim>::value(const Point<dim> &p) const {
+    Tensor<1, dim> value;
+    value[0] = 0;
+    value[1] = 1;
+    std::cout << "tensor: " << value << " ends here" << std::endl;
+    return value;
 }
 
 template<int dim>
@@ -128,6 +143,7 @@ template<int dim>
 void Step4<dim>::assemble_system() {
     QGauss<dim> quadrature_formula(fe.degree + 1);
     RightHandSide<dim> right_hand_side;
+    VectorField<dim> vector_field;
     FEValues<dim> fe_values(fe,
                             quadrature_formula,
                             update_values | update_gradients |
@@ -140,27 +156,34 @@ void Step4<dim>::assemble_system() {
         fe_values.reinit(cell);
         cell_matrix = 0;
         cell_rhs = 0;
-        for (const unsigned int q_index : fe_values.quadrature_point_indices())
+        for (const unsigned int q_index : fe_values.quadrature_point_indices()) {
+            const auto x_q = fe_values.quadrature_point(q_index);
+            Tensor<1, dim> b_q = vector_field.value(x_q);
             for (const unsigned int i : fe_values.dof_indices()) {
-                for (const unsigned int j : fe_values.dof_indices())
+                for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
-                            (fe_values.shape_grad(i, q_index) *
-                             // grad phi_i(x_q)
-                             fe_values.shape_grad(j, q_index) *
-                             // grad phi_j(x_q)
-                             fe_values.JxW(q_index));           // dx
-                const auto x_q = fe_values.quadrature_point(q_index);
+                            ((fe_values.shape_grad(i, q_index) *
+                              // grad phi_i(x_q)
+                              fe_values.shape_grad(j, q_index)
+                              // grad phi_j(x_q)
+                              +
+                              (3 * b_q * fe_values.shape_grad(i, q_index)) *
+                              fe_values.shape_value(j, q_index)
+                             ) * fe_values.JxW(q_index));           // dx
+                }
                 cell_rhs(i) += (fe_values.shape_value(i, q_index) *
                                 // phi_i(x_q)
                                 right_hand_side.value(x_q) *        // f(x_q)
                                 fe_values.JxW(q_index));            // dx
             }
+        }
         cell->get_dof_indices(local_dof_indices);
         for (const unsigned int i : fe_values.dof_indices()) {
-            for (const unsigned int j : fe_values.dof_indices())
+            for (const unsigned int j : fe_values.dof_indices()) {
                 system_matrix.add(local_dof_indices[i],
                                   local_dof_indices[j],
                                   cell_matrix(i, j));
+            }
             system_rhs(local_dof_indices[i]) += cell_rhs(i);
         }
     }
@@ -177,11 +200,9 @@ void Step4<dim>::assemble_system() {
 
 template<int dim>
 void Step4<dim>::solve() {
-    SolverControl solver_control(1000, 1e-12);
-    SolverCG<Vector<double>> solver(solver_control);
-    solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-    std::cout << "   " << solver_control.last_step()
-              << " CG iterations needed to obtain convergence." << std::endl;
+    SparseDirectUMFPACK inverse;
+    inverse.initialize(system_matrix);
+    inverse.vmult(solution, system_rhs);
 }
 
 template<int dim>
@@ -211,9 +232,11 @@ int main() {
         Step4<2> laplace_problem_2d;
         laplace_problem_2d.run();
     }
+    /*
     {
         Step4<3> laplace_problem_3d;
         laplace_problem_3d.run();
     }
+     */
     return 0;
 }
