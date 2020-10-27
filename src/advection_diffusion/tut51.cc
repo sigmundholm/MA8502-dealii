@@ -83,15 +83,7 @@ namespace Step51
         virtual double value(const Point<dim> &p,
                              const unsigned int /*component*/ = 0) const override
         {
-            double sum = 0;
-            for (unsigned int i = 0; i < this->n_source_centers; ++i)
-            {
-                const Tensor<1, dim> x_minus_xi = p - this->source_centers[i];
-                sum +=
-                        std::exp(-x_minus_xi.norm_square() / (this->width * this->width));
-            }
-            return sum /
-                   std::pow(2. * numbers::PI * this->width * this->width, dim / 2.);
+            return 0;
         }
         virtual Tensor<1, dim>
         gradient(const Point<dim> &p,
@@ -144,8 +136,8 @@ namespace Step51
                     convection[0] = 1;
                     break;
                 case 2:
-                    convection[0] = p[1];
-                    convection[1] = -p[0];
+                    convection[0] = 0;
+                    convection[1] = 3;
                     break;
                 case 3:
                     convection[0] = p[1];
@@ -165,20 +157,7 @@ namespace Step51
         virtual double value(const Point<dim> &p,
                              const unsigned int /*component*/ = 0) const override
         {
-            ConvectionVelocity<dim> convection_velocity;
-            Tensor<1, dim>          convection = convection_velocity.value(p);
-            double                  sum        = 0;
-            for (unsigned int i = 0; i < this->n_source_centers; ++i)
-            {
-                const Tensor<1, dim> x_minus_xi = p - this->source_centers[i];
-                sum +=
-                        ((2 * dim - 2 * convection * x_minus_xi -
-                          4 * x_minus_xi.norm_square() / (this->width * this->width)) /
-                         (this->width * this->width) *
-                         std::exp(-x_minus_xi.norm_square() / (this->width * this->width)));
-            }
-            return sum /
-                   std::pow(2. * numbers::PI * this->width * this->width, dim / 2.);
+            return 3;
         }
     };
     template <int dim>
