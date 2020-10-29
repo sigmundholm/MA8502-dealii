@@ -77,6 +77,10 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                             (this->eps *
                              fe_v.shape_grad(i, q) *
                              fe_v.shape_grad(j, q)
+                             +
+                             // From convection term
+                             (b_values[q] * fe_v.shape_grad(i, q)) *
+                             fe_v.shape_value(j, q)
                             ) * JxW[q];
                 }
                 copy_data.cell_rhs(i) +=
@@ -103,6 +107,9 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
         std::vector<double> g(q_points.size());
         this->boundary_values->value_list(q_points, g);
 
+        std::vector<Tensor<1, dim>> b_values(q_points.size());
+        vector_field.value_list(q_points, b_values);
+
         // Set the Nitsche penalty parameter. We're using a uniform grid.
         double gamma = 10 * this->degree * (this->degree + 1);
         double mu = gamma / this->h;
@@ -120,6 +127,11 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                              +
                              mu * fe_face.shape_value(i, q) *
                              fe_face.shape_value(j, q)
+                             -
+                             // From convection term
+                             (b_values[q] * normals[q]) *
+                             fe_face.shape_value(i, q) *
+                             fe_face.shape_value(j, q)
                             ) * JxW[q];
                 }
                 copy_data.cell_rhs(i) +=
@@ -127,6 +139,10 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                         (-g[q] * (normals[q] * fe_face.shape_grad(i, q))
                          +
                          mu * g[q] * fe_face.shape_value(i, q)
+                         -
+                         // From convection term
+                         (b_values[q] * normals[q]) *
+                         g[q] * fe_face.shape_value(i, q)
                         ) * JxW[q];
             }
         }
@@ -154,6 +170,10 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
         const std::vector<Tensor<1, dim>>
                 &normals = fe_iv.get_normal_vectors();
 
+        const auto &q_points = fe_iv.get_quadrature_points();
+        std::vector<Tensor<1, dim>> b_values(q_points.size());
+        vector_field.value_list(q_points, b_values);
+
         for (unsigned int q = 0; q < fe_iv.n_quadrature_points; ++q) {
             for (unsigned int i = 0; i < n_dofs; ++i) {
                 for (unsigned int j = 0; j < n_dofs; ++j) {
@@ -168,6 +188,14 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                              // This term assures we get continuity over interior faces
                              mu * fe_iv.jump(i, q) *
                              fe_iv.jump(j, q)
+                             -
+                             // From convection term
+                             (b_values[q] * normals[q]) *
+                             fe_iv.jump(i, q) *
+                             fe_iv.average(j, q)
+                             +
+                             0.5 * abs(b_values[q] * normals[q]) *
+                             fe_iv.jump(i, q) * fe_iv.jump(j, q)
                             ) * JxW[q];
                 }
             }
