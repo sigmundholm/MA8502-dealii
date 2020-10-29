@@ -5,6 +5,10 @@
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/dofs/dof_renumbering.h>
 
+#include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/fe_interface_values.h>
+#include <deal.II/fe/fe_values.h>
+
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/quadrature_lib.h>
@@ -21,61 +25,33 @@
 
 #include <iostream>
 
-#include "poisson_dg.h"
+#include "rhs_ad.h"
+#include "advection_diffusion_dg.h"
 
 
 template<int dim>
-PoissonDG<dim>::
-PoissonDG(const unsigned int degree,
-          const unsigned int n_refines,
-          Function<dim> &rhs,
-          Function<dim> &bdd_values,
-          Function<dim> &analytical_soln)
-        : Poisson<dim>(degree, n_refines, rhs, bdd_values, analytical_soln),
-          fe(degree) {
-    ;
+AdvectionDiffusionDG<dim>::
+AdvectionDiffusionDG(const unsigned int degree,
+                     const unsigned int n_refines,
+                     const double eps,
+                     Function<dim> &rhs,
+                     Function<dim> &bdd_values,
+                     Function<dim> &analytical_soln)
+        : PoissonDG<dim>(degree, n_refines, rhs, bdd_values, analytical_soln) {
+    this->eps = eps;
 }
 
 
 template<int dim>
-void PoissonDG<dim>::setup_system() {
-    this->dof_handler.distribute_dofs(fe);
-    std::cout << "  Number of degrees of freedom: "
-              << this->dof_handler.n_dofs()
-              << std::endl;
-
-    // Find h
-    for (const auto &cell : this->dof_handler.active_cell_iterators()) {
-        for (const auto &face : cell->face_iterators()) {
-            double h_k = std::pow(face->measure(), 1.0 / (dim - 1));
-            if (h_k > this->h) {
-                this->h = h_k;
-            }
-        }
-    }
-    std::cout << "  h = " << std::to_string(this->h) << std::endl;
-
-    DoFRenumbering::Cuthill_McKee(this->dof_handler);
-    DynamicSparsityPattern dsp(this->dof_handler.n_dofs(),
-                               this->dof_handler.n_dofs());
-    DoFTools::make_flux_sparsity_pattern(this->dof_handler,
-                                         dsp);  // bc tutorial-12
-    this->sparsity_pattern.copy_from(dsp);
-
-    this->system_matrix.reinit(this->sparsity_pattern);
-    this->solution.reinit(this->dof_handler.n_dofs());
-    this->system_rhs.reinit(this->dof_handler.n_dofs());
-}
-
-
-template<int dim>
-void PoissonDG<dim>::assemble_system() {
+void AdvectionDiffusionDG<dim>::assemble_system() {
 
     using Iterator = typename DoFHandler<dim>::active_cell_iterator;
 
     // Set the Nitsche penalty parameter. We're using a uniform grid.
     double gamma = 10 * this->degree * (this->degree + 1);
     double mu = gamma / this->h;
+
+    VectorField<dim> vector_field;
 
     auto cell_worker = [&](const Iterator &cell,
                            ScratchData<dim> &scratch_data,
@@ -90,6 +66,9 @@ void PoissonDG<dim>::assemble_system() {
 
         std::vector<double> f_values(q_points.size());
         this->rhs_function->value_list(q_points, f_values);
+
+        std::vector<Tensor<1, dim>> b_values(q_points.size());
+        vector_field.value_list(q_points, b_values);
 
         for (unsigned int q = 0; q < fe_v.n_quadrature_points; ++q) {
             for (unsigned int i = 0; i < n_dofs; ++i) {
@@ -209,9 +188,8 @@ void PoissonDG<dim>::assemble_system() {
                                                    this->system_matrix);
         }
     };
-
     const unsigned int n_gauss_points = this->dof_handler.get_fe().degree + 1;
-    ScratchData<dim> scratch_data(fe, n_gauss_points);
+    ScratchData<dim> scratch_data(this->fe, n_gauss_points);
     CopyData copy_data;
     MeshWorker::mesh_loop(this->dof_handler.begin_active(),
                           this->dof_handler.end(),
@@ -224,5 +202,18 @@ void PoissonDG<dim>::assemble_system() {
 }
 
 
-template
-class PoissonDG<2>;
+int main() {
+    std::cout << "AdvectionDiffusionDG" << std::endl;
+    {
+        double eps = 0.1;
+        RightHandSideAD<2> rhs(eps);
+        BoundaryValuesAD<2> boundary_values(eps);
+        AnalyticalSolutionAD<2> analytic(eps);
+
+        AdvectionDiffusionDG<2> advec_diff(1, 5, eps, rhs, boundary_values,
+                                           analytic);
+        advec_diff.run();
+    }
+
+
+}
