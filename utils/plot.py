@@ -79,7 +79,7 @@ def add_convergence_line(ax, ns, errors, yscale="log2", xlabel="$N$", name=""):
 
     ax.plot(ns, errors, "-o", label=f'${name}: {-round(res[0], 3)}$')
     if yscale == "log2":
-        ax.set_yscale("log", basey=2)
+        ax.set_yscale("log", base=2)
     else:
         ax.set_yscale("log")
 
@@ -142,7 +142,6 @@ def conv_plots(data, columns, title="", latex=False):
         print(col_name, data_col)
         ax = add_convergence_line(ax, ns, data_col, "log2", name=col_name)
     ax.set_title(title)
-    plt.show()
 
 
 if __name__ == '__main__':
