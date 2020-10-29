@@ -118,15 +118,15 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
             for (unsigned int i = 0; i < n_face_dofs; ++i) {
                 for (unsigned int j = 0; j < n_face_dofs; ++j) {
                     copy_data.cell_matrix(i, j) +=
-                            this->eps *
-                            (-(normals[q] * fe_face.shape_grad(i, q)) *
-                             fe_face.shape_value(j, q)
-                             -
-                             fe_face.shape_value(i, q) *
-                             (normals[q] * fe_face.shape_grad(j, q))
-                             +
-                             mu * fe_face.shape_value(i, q) *
-                             fe_face.shape_value(j, q)
+                            (this->eps *
+                             (-(normals[q] * fe_face.shape_grad(i, q)) *
+                              fe_face.shape_value(j, q)
+                              -
+                              fe_face.shape_value(i, q) *
+                              (normals[q] * fe_face.shape_grad(j, q))
+                              +
+                              mu * fe_face.shape_value(i, q) *
+                              fe_face.shape_value(j, q))
                              -
                              // From convection term
                              (b_values[q] * normals[q]) *
@@ -135,10 +135,10 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                             ) * JxW[q];
                 }
                 copy_data.cell_rhs(i) +=
-                        this->eps *
-                        (-g[q] * (normals[q] * fe_face.shape_grad(i, q))
-                         +
-                         mu * g[q] * fe_face.shape_value(i, q)
+                        (this->eps *
+                         (-g[q] * (normals[q] * fe_face.shape_grad(i, q))
+                          +
+                          mu * g[q] * fe_face.shape_value(i, q))
                          -
                          // From convection term
                          (b_values[q] * normals[q]) *
@@ -178,16 +178,16 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
             for (unsigned int i = 0; i < n_dofs; ++i) {
                 for (unsigned int j = 0; j < n_dofs; ++j) {
                     copy_data_face.cell_matrix(i, j) +=
-                            this->eps *
-                            (-(normals[q] * fe_iv.average_gradient(i, q)) *
-                             fe_iv.jump(j, q)
-                             -
-                             fe_iv.jump(i, q) *
-                             (normals[q] * fe_iv.average_gradient(j, q))
-                             +
-                             // This term assures we get continuity over interior faces
-                             mu * fe_iv.jump(i, q) *
-                             fe_iv.jump(j, q)
+                            (this->eps *
+                             (-(normals[q] * fe_iv.average_gradient(i, q)) *
+                              fe_iv.jump(j, q)
+                              -
+                              fe_iv.jump(i, q) *
+                              (normals[q] * fe_iv.average_gradient(j, q))
+                              +
+                              // This term assures we get continuity over interior faces
+                              mu * fe_iv.jump(i, q) *
+                              fe_iv.jump(j, q))
                              -
                              // From convection term
                              (b_values[q] * normals[q]) *
