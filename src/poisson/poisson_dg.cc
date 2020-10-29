@@ -137,7 +137,8 @@ void PoissonDG<dim>::assemble_system() {
     using Iterator = typename DoFHandler<dim>::active_cell_iterator;
 
     // Set the Nitsche penalty parameter. We're using a uniform grid.
-    double mu = 5 / this->h;
+    double gamma = 10 * this->degree * (this->degree + 1);
+    double mu = gamma / this->h;
 
     auto cell_worker = [&](const Iterator &cell,
                            ScratchData<dim> &scratch_data,
@@ -181,29 +182,38 @@ void PoissonDG<dim>::assemble_system() {
         const auto &q_points = fe_face.get_quadrature_points();
         const unsigned int n_face_dofs = fe_face.get_fe().n_dofs_per_cell();
         const std::vector<double> &JxW = fe_face.get_JxW_values();
-        const std::vector<Tensor<1, dim>> &normals = fe_face.get_normal_vectors();
+        const std::vector<Tensor<1, dim>>
+                &normals = fe_face.get_normal_vectors();
         std::vector<double> g(q_points.size());
         this->boundary_values->value_list(q_points, g);
+
+        // Set the Nitsche penalty parameter. We're using a uniform grid.
+        double gamma = 10 * this->degree * (this->degree + 1);
+        double mu = gamma / this->h;
 
         for (unsigned int q = 0; q < fe_face.n_quadrature_points; ++q) {
             for (unsigned int i = 0; i < n_face_dofs; ++i) {
                 for (unsigned int j = 0; j < n_face_dofs; ++j) {
                     copy_data.cell_matrix(i, j) +=
+                            this->eps *
                             (-(normals[q] * fe_face.shape_grad(i, q)) *
                              fe_face.shape_value(j, q)
                              -
-                             mu *
                              fe_face.shape_value(i, q) *
                              (normals[q] * fe_face.shape_grad(j, q))
+                             +
+                             mu * fe_face.shape_value(i, q) *
+                             fe_face.shape_value(j, q)
                             ) * JxW[q];
                 }
                 copy_data.cell_rhs(i) +=
-                        (-mu * g[q] *
-                         (normals[q] * fe_face.shape_grad(i, q))
+                        this->eps *
+                        (-g[q] * (normals[q] * fe_face.shape_grad(i, q))
+                         +
+                         mu * g[q] * fe_face.shape_value(i, q)
                         ) * JxW[q];
             }
         }
-
     };
 
     auto face_worker = [&](const Iterator &cell,
@@ -225,23 +235,29 @@ void PoissonDG<dim>::assemble_system() {
         copy_data_face.cell_matrix.reinit(n_dofs, n_dofs);
 
         const std::vector<double> &JxW = fe_iv.get_JxW_values();
-        const std::vector<Tensor<1, dim>> &normals = fe_iv.get_normal_vectors();
+        const std::vector<Tensor<1, dim>>
+                &normals = fe_iv.get_normal_vectors();
 
         for (unsigned int q = 0; q < fe_iv.n_quadrature_points; ++q) {
             for (unsigned int i = 0; i < n_dofs; ++i) {
                 for (unsigned int j = 0; j < n_dofs; ++j) {
                     copy_data_face.cell_matrix(i, j) +=
+                            this->eps *
                             (-(normals[q] * fe_iv.average_gradient(i, q)) *
                              fe_iv.jump(j, q)
+                             -
+                             fe_iv.jump(i, q) *
+                             (normals[q] * fe_iv.average_gradient(j, q))
                              +
-                             (normals[q] * fe_iv.jump_gradient(i, q)) *
-                             fe_iv.average(j, q)
+                             // This term assures we get continuity over interior faces
+                             mu * fe_iv.jump(i, q) *
+                             fe_iv.jump(j, q)
                             ) * JxW[q];
                 }
             }
         }
-
     };
+
 
     AffineConstraints<double> constraints;
     auto copier = [&](const CopyData &c) {
