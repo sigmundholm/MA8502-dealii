@@ -22,3 +22,7 @@ target_link_libraries(base-dg cutfem)
 add_executable(poisson-dg run_dg.cc)
 deal_ii_setup_target(poisson-dg)
 target_link_libraries(poisson-dg base-dg base cutfem)
+
+add_executable(convergence_pdg convergence_pdg.cc rhs.cc ../advection_diffusion/rhs_ad.cc)
+deal_ii_setup_target(convergence_pdg)
+target_link_libraries(convergence_pdg base-dg base cutfem)
