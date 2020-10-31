@@ -1,6 +1,5 @@
-
-### Kompilere med cutFEM
-Endte med å måtte sette path til DealiiCutElements når jeg kjører cmake:
+### Compile with cutFEM
+Ended up with setting the path to DealiiCutElements when I run cmake:
 ```shell script
 $ cmake -DCUTFEM_DIR=~/git/path/to/dealiicutelements/install ..
 $ make -j4

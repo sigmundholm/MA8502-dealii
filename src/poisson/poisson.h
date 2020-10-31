@@ -42,7 +42,7 @@ public:
 protected:
     virtual void make_grid();
 
-    void setup_system();
+    virtual void setup_system();
 
     virtual void assemble_system();
 

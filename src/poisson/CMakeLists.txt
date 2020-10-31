@@ -13,3 +13,16 @@ target_link_libraries(error base cutfem)
 add_executable(convergence_p convergence_p.cc rhs.cc)
 deal_ii_setup_target(convergence_p)
 target_link_libraries(convergence_p base cutfem)
+
+# Discontinuous Galerkin Method
+add_library(base-dg poisson_dg.cc rhs.cc ../advection_diffusion/rhs_ad.cc)
+deal_ii_setup_target(base-dg)
+target_link_libraries(base-dg cutfem)
+
+add_executable(poisson-dg run_dg.cc)
+deal_ii_setup_target(poisson-dg)
+target_link_libraries(poisson-dg base-dg base cutfem)
+
+add_executable(convergence_pdg convergence_pdg.cc rhs.cc ../advection_diffusion/rhs_ad.cc)
+deal_ii_setup_target(convergence_pdg)
+target_link_libraries(convergence_pdg base-dg base cutfem)

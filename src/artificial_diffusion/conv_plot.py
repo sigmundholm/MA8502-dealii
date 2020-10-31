@@ -1,6 +1,7 @@
 import os
 from os.path import split
 import numpy as np
+import matplotlib.pyplot as plt
 
 from utils.plot import conv_plots
 
@@ -17,3 +18,4 @@ if __name__ == '__main__':
         conv_plots(data, head,
                    title=r"$\textrm{Artificial Diffusion: polynomial order: " + str(poly_order) + ", eps=0.1}$",
                    latex=True)
+    plt.show()
