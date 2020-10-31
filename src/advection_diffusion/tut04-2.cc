@@ -170,10 +170,10 @@ void Step4<dim>::assemble_system() {
                              // grad phi_i(x_q)
                              fe_values.shape_grad(j, q_index)
                              // grad phi_j(x_q)
-                             +
+                             -
                              // Advection term
-                             (b_q * fe_values.shape_grad(i, q_index)) *
-                             fe_values.shape_value(j, q_index)
+                             (b_q * fe_values.shape_grad(j, q_index)) *
+                             fe_values.shape_value(i, q_index)
                             ) * fe_values.JxW(q_index);           // dx
                 }
 
