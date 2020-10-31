@@ -140,21 +140,23 @@ void Step4<dim>::assemble_system() {
         fe_values.reinit(cell);
         cell_matrix = 0;
         cell_rhs = 0;
-        for (const unsigned int q_index : fe_values.quadrature_point_indices())
+        for (const unsigned int q_index : fe_values.quadrature_point_indices()) {
             for (const unsigned int i : fe_values.dof_indices()) {
-                for (const unsigned int j : fe_values.dof_indices())
+                for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
                             (fe_values.shape_grad(i, q_index) *
                              // grad phi_i(x_q)
                              fe_values.shape_grad(j, q_index) *
                              // grad phi_j(x_q)
                              fe_values.JxW(q_index));           // dx
+                }
                 const auto x_q = fe_values.quadrature_point(q_index);
                 cell_rhs(i) += (fe_values.shape_value(i, q_index) *
                                 // phi_i(x_q)
                                 right_hand_side.value(x_q) *        // f(x_q)
                                 fe_values.JxW(q_index));            // dx
             }
+        }
         cell->get_dof_indices(local_dof_indices);
         for (const unsigned int i : fe_values.dof_indices()) {
             for (const unsigned int j : fe_values.dof_indices())
