@@ -38,64 +38,71 @@
 #include <fstream>
 #include <iostream>
 #include <deal.II/base/logstream.h>
+
 using namespace dealii;
-template <int dim>
-class Step4
-{
+
+template<int dim>
+class Step4 {
 public:
     Step4();
+
     void run();
+
 private:
     void make_grid();
+
     void setup_system();
+
     void assemble_system();
+
     void solve();
+
     void output_results() const;
+
     Triangulation<dim> triangulation;
-    FE_Q<dim>          fe;
-    DoFHandler<dim>    dof_handler;
-    SparsityPattern      sparsity_pattern;
+    FE_Q<dim> fe;
+    DoFHandler<dim> dof_handler;
+    SparsityPattern sparsity_pattern;
     SparseMatrix<double> system_matrix;
     Vector<double> solution;
     Vector<double> system_rhs;
 };
-template <int dim>
-class RightHandSide : public Function<dim>
-{
+
+template<int dim>
+class RightHandSide : public Function<dim> {
 public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim> &p,
                          const unsigned int component = 0) const override;
 };
-template <int dim>
-class BoundaryValues : public Function<dim>
-{
+
+template<int dim>
+class BoundaryValues : public Function<dim> {
 public:
-    virtual double value(const Point<dim> & p,
+    virtual double value(const Point<dim> &p,
                          const unsigned int component = 0) const override;
 };
-template <int dim>
+
+template<int dim>
 double RightHandSide<dim>::value(const Point<dim> &p,
-                                 const unsigned int /*component*/) const
-{
+                                 const unsigned int /*component*/) const {
     double return_value = 0.0;
     for (unsigned int i = 0; i < dim; ++i)
         return_value += 4.0 * std::pow(p(i), 4.0);
     return return_value;
 }
-template <int dim>
+
+template<int dim>
 double BoundaryValues<dim>::value(const Point<dim> &p,
-                                  const unsigned int /*component*/) const
-{
+                                  const unsigned int /*component*/) const {
     return p.square();
 }
-template <int dim>
+
+template<int dim>
 Step4<dim>::Step4()
-        : fe(1)
-        , dof_handler(triangulation)
-{}
-template <int dim>
-void Step4<dim>::make_grid()
-{
+        : fe(1), dof_handler(triangulation) {}
+
+template<int dim>
+void Step4<dim>::make_grid() {
     GridGenerator::hyper_cube(triangulation, -1, 1);
     triangulation.refine_global(4);
     std::cout << "   Number of active cells: " << triangulation.n_active_cells()
@@ -103,9 +110,9 @@ void Step4<dim>::make_grid()
               << "   Total number of cells: " << triangulation.n_cells()
               << std::endl;
 }
-template <int dim>
-void Step4<dim>::setup_system()
-{
+
+template<int dim>
+void Step4<dim>::setup_system() {
     dof_handler.distribute_dofs(fe);
     std::cout << "   Number of degrees of freedom: " << dof_handler.n_dofs()
               << std::endl;
@@ -116,9 +123,9 @@ void Step4<dim>::setup_system()
     solution.reinit(dof_handler.n_dofs());
     system_rhs.reinit(dof_handler.n_dofs());
 }
-template <int dim>
-void Step4<dim>::assemble_system()
-{
+
+template<int dim>
+void Step4<dim>::assemble_system() {
     QGauss<dim> quadrature_formula(fe.degree + 1);
     RightHandSide<dim> right_hand_side;
     FEValues<dim> fe_values(fe,
@@ -127,29 +134,29 @@ void Step4<dim>::assemble_system()
                             update_quadrature_points | update_JxW_values);
     const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    Vector<double>     cell_rhs(dofs_per_cell);
+    Vector<double> cell_rhs(dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-    for (const auto &cell : dof_handler.active_cell_iterators())
-    {
+    for (const auto &cell : dof_handler.active_cell_iterators()) {
         fe_values.reinit(cell);
         cell_matrix = 0;
-        cell_rhs    = 0;
+        cell_rhs = 0;
         for (const unsigned int q_index : fe_values.quadrature_point_indices())
-            for (const unsigned int i : fe_values.dof_indices())
-            {
+            for (const unsigned int i : fe_values.dof_indices()) {
                 for (const unsigned int j : fe_values.dof_indices())
                     cell_matrix(i, j) +=
-                            (fe_values.shape_grad(i, q_index) * // grad phi_i(x_q)
-                             fe_values.shape_grad(j, q_index) * // grad phi_j(x_q)
+                            (fe_values.shape_grad(i, q_index) *
+                             // grad phi_i(x_q)
+                             fe_values.shape_grad(j, q_index) *
+                             // grad phi_j(x_q)
                              fe_values.JxW(q_index));           // dx
                 const auto x_q = fe_values.quadrature_point(q_index);
-                cell_rhs(i) += (fe_values.shape_value(i, q_index) * // phi_i(x_q)
+                cell_rhs(i) += (fe_values.shape_value(i, q_index) *
+                                // phi_i(x_q)
                                 right_hand_side.value(x_q) *        // f(x_q)
                                 fe_values.JxW(q_index));            // dx
             }
         cell->get_dof_indices(local_dof_indices);
-        for (const unsigned int i : fe_values.dof_indices())
-        {
+        for (const unsigned int i : fe_values.dof_indices()) {
             for (const unsigned int j : fe_values.dof_indices())
                 system_matrix.add(local_dof_indices[i],
                                   local_dof_indices[j],
@@ -167,18 +174,18 @@ void Step4<dim>::assemble_system()
                                        solution,
                                        system_rhs);
 }
-template <int dim>
-void Step4<dim>::solve()
-{
-    SolverControl            solver_control(1000, 1e-12);
+
+template<int dim>
+void Step4<dim>::solve() {
+    SolverControl solver_control(1000, 1e-12);
     SolverCG<Vector<double>> solver(solver_control);
     solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
     std::cout << "   " << solver_control.last_step()
               << " CG iterations needed to obtain convergence." << std::endl;
 }
-template <int dim>
-void Step4<dim>::output_results() const
-{
+
+template<int dim>
+void Step4<dim>::output_results() const {
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler);
     data_out.add_data_vector(solution, "solution");
@@ -186,9 +193,9 @@ void Step4<dim>::output_results() const
     std::ofstream output(dim == 2 ? "solution-2d.vtk" : "solution-3d.vtk");
     data_out.write_vtk(output);
 }
-template <int dim>
-void Step4<dim>::run()
-{
+
+template<int dim>
+void Step4<dim>::run() {
     std::cout << "Solving problem in " << dim << " space dimensions."
               << std::endl;
     make_grid();
@@ -197,8 +204,8 @@ void Step4<dim>::run()
     solve();
     output_results();
 }
-int main()
-{
+
+int main() {
     {
         Step4<2> laplace_problem_2d;
         laplace_problem_2d.run();
