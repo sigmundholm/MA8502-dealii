@@ -91,19 +91,19 @@ void StreamlineDiffusion<dim>::assemble_system() {
                     double laplacian_j = trace(hessian_j);
 
                     cell_matrix(i, j) +=
-                            (this->eps * fe_values.shape_grad(i, q_index)
-                             * fe_values.shape_grad(j, q_index)
+                            (this->eps * fe_values.shape_grad(j, q_index)
+                             * fe_values.shape_grad(i, q_index)
                              +
                              (vector_field.value(x_q)
-                              * fe_values.shape_grad(i, q_index))
-                             * fe_values.shape_value(j, q_index)
+                              * fe_values.shape_grad(j, q_index))
+                             * fe_values.shape_value(i, q_index)
                              +
                              delta_T
-                             * ((-this->eps * laplacian_i
-                                 + (b_q * fe_values.shape_grad(i, q_index))
-                                ) * (-this->eps * laplacian_j
-                                     + rho * b_q *
-                                       fe_values.shape_grad(j, q_index))
+                             * ((-this->eps * laplacian_j
+                                 + (b_q * fe_values.shape_grad(j, q_index))
+                                ) * (-this->eps * laplacian_i
+                                     + rho * (b_q *
+                                       fe_values.shape_grad(i, q_index)))
                              )
                             ) * fe_values.JxW(q_index);            // dx
                 }
