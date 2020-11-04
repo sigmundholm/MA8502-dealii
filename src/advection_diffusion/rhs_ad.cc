@@ -73,7 +73,7 @@ value(const Point<dim> &p) const {
     (void) p;
     Tensor<1, dim> value;
     value[0] = 0;
-    value[1] = -1;  // TODO why does this work? :(
+    value[1] = 1;
     return value;
 }
 

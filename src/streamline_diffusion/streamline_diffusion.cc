@@ -63,11 +63,15 @@ void StreamlineDiffusion<dim>::assemble_system() {
     double peclet_number = 1 * this->h / this->eps;
     double delta_0 = 0.01;
     double delta_T = 0;
+
+    // Constants for Streamline diffusion (rho = 0)
     if (peclet_number <= 1) {
-        delta_T = delta_0 * this->h /1;
+        delta_T = delta_0 * this->h / 1;
     } else {
         delta_T = delta_0 * pow(this->h, 2) / this->eps;
     }
+
+    // TODO need constants for rho = 1, and -1 too
 
     for (const auto &cell : this->dof_handler.active_cell_iterators()) {
         fe_values.reinit(cell);
@@ -91,19 +95,18 @@ void StreamlineDiffusion<dim>::assemble_system() {
                     double laplacian_j = trace(hessian_j);
 
                     cell_matrix(i, j) +=
-                            (this->eps * fe_values.shape_grad(i, q_index)
-                             * fe_values.shape_grad(j, q_index)
+                            (this->eps * fe_values.shape_grad(j, q_index)
+                             * fe_values.shape_grad(i, q_index)
                              +
-                             (vector_field.value(x_q)
-                              * fe_values.shape_grad(i, q_index))
-                             * fe_values.shape_value(j, q_index)
+                             (b_q * fe_values.shape_grad(j, q_index))
+                             * fe_values.shape_value(i, q_index)
                              +
                              delta_T
-                             * ((-this->eps * laplacian_i
-                                 + (b_q * fe_values.shape_grad(i, q_index))
-                                ) * (-this->eps * laplacian_j
-                                     + rho * b_q *
-                                       fe_values.shape_grad(j, q_index))
+                             * ((-this->eps * laplacian_j
+                                 + (b_q * fe_values.shape_grad(j, q_index))
+                                ) * (-this->eps * laplacian_i
+                                     + rho *
+                                       (b_q * fe_values.shape_grad(i, q_index)))
                              )
                             ) * fe_values.JxW(q_index);            // dx
                 }
@@ -113,8 +116,9 @@ void StreamlineDiffusion<dim>::assemble_system() {
                                 * f_q                              // f(x_q)
                                 +
                                 delta_T * f_q
-                                * (b_q *
-                                   fe_values.shape_grad(i, q_index))
+                                * (-this->eps * laplacian_i
+                                   + rho *
+                                     (b_q * fe_values.shape_grad(i, q_index)))
                                ) * fe_values.JxW(q_index);             // dx
             }
         }

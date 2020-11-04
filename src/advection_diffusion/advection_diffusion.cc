@@ -72,8 +72,8 @@ void AdvectionDiffusion<dim>::assemble_system() {
                             (this->eps * fe_values.shape_grad(i, q_index)
                              * fe_values.shape_grad(j, q_index)
                              +
-                             (b_q * fe_values.shape_grad(i, q_index))
-                             * fe_values.shape_value(j, q_index)
+                             (b_q * fe_values.shape_grad(j, q_index))
+                             * fe_values.shape_value(i, q_index)
                             ) * fe_values.JxW(q_index);            // dx
                 }
 

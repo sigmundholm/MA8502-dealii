@@ -75,12 +75,12 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                 for (unsigned int j = 0; j < n_dofs; ++j) {
                     copy_data.cell_matrix(i, j) +=
                             (this->eps *
-                             fe_v.shape_grad(i, q) *
-                             fe_v.shape_grad(j, q)
+                             fe_v.shape_grad(j, q) *
+                             fe_v.shape_grad(i, q)
                              +
                              // From convection term
-                             (b_values[q] * fe_v.shape_grad(i, q)) *
-                             fe_v.shape_value(j, q)
+                             (b_values[q] * fe_v.shape_grad(j, q)) *
+                             fe_v.shape_value(i, q)
                             ) * JxW[q];
                 }
                 copy_data.cell_rhs(i) +=
@@ -119,19 +119,19 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                 for (unsigned int j = 0; j < n_face_dofs; ++j) {
                     copy_data.cell_matrix(i, j) +=
                             (this->eps *
-                             (-(normals[q] * fe_face.shape_grad(i, q)) *
-                              fe_face.shape_value(j, q)
+                             (-(normals[q] * fe_face.shape_grad(j, q)) *
+                              fe_face.shape_value(i, q)
                               -
-                              fe_face.shape_value(i, q) *
-                              (normals[q] * fe_face.shape_grad(j, q))
+                              fe_face.shape_value(j, q) *
+                              (normals[q] * fe_face.shape_grad(i, q))
                               +
-                              mu * fe_face.shape_value(i, q) *
-                              fe_face.shape_value(j, q))
+                              mu * fe_face.shape_value(j, q) *
+                              fe_face.shape_value(i, q))
                              -
                              // From convection term
                              (b_values[q] * normals[q]) *
-                             fe_face.shape_value(i, q) *
-                             fe_face.shape_value(j, q)
+                             fe_face.shape_value(j, q) *
+                             fe_face.shape_value(i, q)
                             ) * JxW[q];
                 }
                 copy_data.cell_rhs(i) +=
@@ -179,23 +179,23 @@ void AdvectionDiffusionDG<dim>::assemble_system() {
                 for (unsigned int j = 0; j < n_dofs; ++j) {
                     copy_data_face.cell_matrix(i, j) +=
                             (this->eps *
-                             (-(normals[q] * fe_iv.average_gradient(i, q)) *
-                              fe_iv.jump(j, q)
+                             (-(normals[q] * fe_iv.average_gradient(j, q)) *
+                              fe_iv.jump(i, q)
                               -
-                              fe_iv.jump(i, q) *
-                              (normals[q] * fe_iv.average_gradient(j, q))
+                              fe_iv.jump(j, q) *
+                              (normals[q] * fe_iv.average_gradient(i, q))
                               +
                               // This term assures we get continuity over interior faces
-                              mu * fe_iv.jump(i, q) *
-                              fe_iv.jump(j, q))
+                              mu * fe_iv.jump(j, q) *
+                              fe_iv.jump(i, q))
                              -
                              // From convection term
                              (b_values[q] * normals[q]) *
-                             fe_iv.jump(i, q) *
-                             fe_iv.average(j, q)
+                             fe_iv.jump(j, q) *
+                             fe_iv.average(i, q)
                              +
                              0.5 * abs(b_values[q] * normals[q]) *
-                             fe_iv.jump(i, q) * fe_iv.jump(j, q)
+                             fe_iv.jump(j, q) * fe_iv.jump(i, q)
                             ) * JxW[q];
                 }
             }

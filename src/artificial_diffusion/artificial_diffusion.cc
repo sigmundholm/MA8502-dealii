@@ -71,11 +71,11 @@ void ArtificialDiffusion<dim>::assemble_system() {
                 for (const unsigned int j : fe_values.dof_indices()) {
                     cell_matrix(i, j) +=
                             ((this->eps + alpha) *
-                             fe_values.shape_grad(i, q_index)
-                             * fe_values.shape_grad(j, q_index)
+                             fe_values.shape_grad(j, q_index)
+                             * fe_values.shape_grad(i, q_index)
                              +
-                             b_q * fe_values.shape_grad(i, q_index)
-                             * fe_values.shape_value(j, q_index)
+                             b_q * fe_values.shape_grad(j, q_index)
+                             * fe_values.shape_value(i, q_index)
                             ) * fe_values.JxW(q_index);            // dx
                 }
 
