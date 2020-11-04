@@ -41,13 +41,12 @@ namespace AdvectionDiffusionVector {
 
     template<int dim>
     StokesNitsche<dim>::StokesNitsche(const unsigned int degree,
-                                      RightHandSide <dim> &rhs,
-                                      BoundaryValues <dim> &bdd_val,
+                                      RightHandSide<dim> &rhs,
+                                      BoundaryValues<dim> &bdd_val,
                                       const unsigned int do_nothing_bdd_id)
             : degree(degree),
-              fe(FESystem<dim>(FE_Q<dim>(degree + 1), dim), 1,
-                 FE_Q<dim>(degree),
-                 1), // u (with dim components), p (scalar component)
+              fe(FESystem<dim>(FE_Q<dim>(degree + 1),
+                               dim)), // u (with dim components)
               dof_handler(triangulation), do_nothing_bdd_id(do_nothing_bdd_id) {
         right_hand_side = &rhs;
         boundary_values = &bdd_val;
@@ -56,7 +55,9 @@ namespace AdvectionDiffusionVector {
 
     template<int dim>
     void StokesNitsche<dim>::make_grid() {
-        GridGenerator::channel_with_cylinder(triangulation, 0.03, 2, 2.0, true);
+        Point<dim> p1(-1, -1);
+        Point<dim> p2(1, 1);
+        GridGenerator::hyper_rectangle(triangulation, p1, p2, true);
         triangulation.refine_global(dim == 2 ? 3 : 0);
     }
 
@@ -64,12 +65,12 @@ namespace AdvectionDiffusionVector {
     void StokesNitsche<dim>::output_grid() {
         // Write svg of grid to file.
         if (dim == 2) {
-            std::ofstream out("nitsche-stokes-grid.svg");
+            std::ofstream out("grid.svg");
             GridOut grid_out;
             grid_out.write_svg(triangulation, out);
             std::cout << "  Grid written to file as svg." << std::endl;
         }
-        std::ofstream out_vtk("nitsche-stokes-grid.vtk");
+        std::ofstream out_vtk("grid.vtk");
         GridOut grid_out;
         grid_out.write_vtk(triangulation, out_vtk);
         std::cout << "  Grid written to file as vtk." << std::endl;
@@ -139,18 +140,20 @@ namespace AdvectionDiffusionVector {
                 bdd_values(n_q_face_points, Tensor<1, dim>());
 
         const FEValuesExtractors::Vector velocities(0);
-        const FEValuesExtractors::Scalar pressure(dim);
+        // const FEValuesExtractors::Scalar pressure(dim);
 
         // Calculate often used terms in the beginning of each cell-loop
         std::vector<Tensor<2, dim>> grad_phi_u(dofs_per_cell);
         std::vector<double> div_phi_u(dofs_per_cell);
         std::vector<Tensor<1, dim>> phi_u(dofs_per_cell, Tensor<1, dim>());
-        std::vector<double> phi_p(dofs_per_cell);
+
+        VectorField<dim> vector_field;
 
         double h;
         double mu;
         Tensor<1, dim> normal;
-        Tensor<1, dim> x_q;
+        Point<dim> x_q;
+        Tensor<1, dim> b_q;
 
         for (const auto &cell : dof_handler.active_cell_iterators()) {
             fe_values.reinit(cell);
@@ -163,27 +166,29 @@ namespace AdvectionDiffusionVector {
 
             // Integrate the contribution for each cell
             for (const unsigned int q : fe_values.quadrature_point_indices()) {
+                x_q = fe_values.quadrature_point(q);
+                b_q = vector_field.value(x_q);
 
                 for (const unsigned int k : fe_values.dof_indices()) {
                     grad_phi_u[k] = fe_values[velocities].gradient(k, q);
-                    div_phi_u[k] = fe_values[velocities].divergence(k, q);
+                    // div_phi_u[k] = fe_values[velocities].divergence(k, q);
                     phi_u[k] = fe_values[velocities].value(k, q);
-                    phi_p[k] = fe_values[pressure].value(k, q);
+                    // phi_p[k] = fe_values[pressure].value(k, q);
                 }
 
                 for (const unsigned int i : fe_values.dof_indices()) {
                     for (const unsigned int j : fe_values.dof_indices()) {
                         local_matrix(i, j) +=
                                 (scalar_product(grad_phi_u[j],
-                                                grad_phi_u[i])  // (grad u, grad v)
-                                 - (div_phi_u[i] * phi_p[j])    // -(div v, p)
-                                 - (div_phi_u[j] * phi_p[i])    // -(div u, q)
-                                ) * fe_values.JxW(q);           // dx
+                                                grad_phi_u[i]) // (∇u, ∇v)
+                                 +
+                                 ((b_q * grad_phi_u[j]) *      // (b∇u, v)
+                                  phi_u[i])
+                                ) * fe_values.JxW(q);          // dx
                     }
                     // RHS
-                    local_rhs(i) +=
-                            rhs_values[q] * phi_u[i]  // (f, v)
-                            * fe_values.JxW(q);       // dx
+                    local_rhs(i) += rhs_values[q] * phi_u[i]   // (f, v)
+                                    * fe_values.JxW(q);        // dx
                 }
             }
 
@@ -204,17 +209,14 @@ namespace AdvectionDiffusionVector {
 
                     for (unsigned int q : fe_face_values.quadrature_point_indices()) {
                         x_q = fe_face_values.quadrature_point(q);
+                        b_q = vector_field.value(x_q);
                         normal = fe_face_values.normal_vector(q);
 
                         for (const unsigned int k : fe_face_values.dof_indices()) {
                             grad_phi_u[k] = fe_face_values[velocities].gradient(
                                     k,
                                     q);
-                            div_phi_u[k] = fe_face_values[velocities].divergence(
-                                    k,
-                                    q);
                             phi_u[k] = fe_face_values[velocities].value(k, q);
-                            phi_p[k] = fe_face_values[pressure].value(k, q);
                         }
 
                         for (const unsigned int i : fe_face_values.dof_indices()) {
@@ -222,26 +224,24 @@ namespace AdvectionDiffusionVector {
 
                                 local_matrix(i, j) +=
                                         (-(grad_phi_u[j] * normal) *
-                                         phi_u[i]  // -(n * grad u, v)
-                                         - (grad_phi_u[i] * normal) *
-                                           phi_u[j] // -(n * grad v, u)
-                                         + mu * (phi_u[j] *
-                                                 phi_u[i])          // mu (u, v)
-                                         + (normal * phi_u[i]) *
-                                           phi_p[j]      // (n * v, p)
-                                         + (normal * phi_u[j]) *
-                                           phi_p[i]      // (n * u, q)
+                                         phi_u[i]  // -(n ∇u, v)
+                                         +
+                                         mu * phi_u[j] *
+                                         (b_q * grad_phi_u[i])
+                                         -
+                                         mu * phi_u[j] *
+                                         (normal * grad_phi_u[i])
                                         ) *
-                                        fe_face_values.JxW(q);             // ds
+                                        fe_face_values.JxW(q);       // ds
                             }
 
-                            Tensor<1, dim> prod_r =
-                                    mu * phi_u[i] - grad_phi_u[i] * normal +
-                                    phi_p[i] * normal;
                             local_rhs(i) +=
-                                    prod_r *
-                                    bdd_values[q]    // (g, mu v - n grad v + q * n)
-                                    * fe_face_values.JxW(q);  // ds
+                                    (mu * bdd_values[q] *
+                                     (b_q * grad_phi_u[i])
+                                     -
+                                     mu * bdd_values[q] *
+                                     (normal * grad_phi_u[i])
+                                    ) * fe_face_values.JxW(q); // ds
                         }
                     }
                 }
@@ -264,7 +264,7 @@ namespace AdvectionDiffusionVector {
 
     template<int dim>
     void StokesNitsche<dim>::solve() {
-        // TODO annen løser? Løs på blokk-form?
+        std::cout << "  Solving the system." << std::endl;
         SparseDirectUMFPACK inverse;
         inverse.initialize(system_matrix);
         inverse.vmult(solution, system_rhs);
@@ -275,10 +275,12 @@ namespace AdvectionDiffusionVector {
         // TODO se også Handling VVP.
         // see step-22
         std::vector<std::string> solution_names(dim, "velocity");
-        solution_names.emplace_back("pressure");
+        // solution_names.emplace_back("pressure");
+
         std::vector<DataComponentInterpretation::DataComponentInterpretation> dci(
                 dim, DataComponentInterpretation::component_is_part_of_vector);
-        dci.push_back(DataComponentInterpretation::component_is_scalar);
+
+        // dci.push_back(DataComponentInterpretation::component_is_scalar);
 
         DataOut<dim> data_out;
         data_out.attach_dof_handler(dof_handler);
@@ -286,7 +288,7 @@ namespace AdvectionDiffusionVector {
                                  DataOut<dim>::type_dof_data, dci);
 
         data_out.build_patches();
-        std::ofstream output("nitsche-stokes.vtk");
+        std::ofstream output("solution.vtk");
         data_out.write_vtk(output);
         std::cout << "  Output written to .vtk file." << std::endl;
     }

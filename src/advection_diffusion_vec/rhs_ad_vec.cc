@@ -8,22 +8,22 @@ using namespace dealii;
 namespace AdvectionDiffusionVector {
 
     template<int dim>
-    double RightHandSide<dim>::point_value(const Point <dim> &p,
+    double RightHandSide<dim>::point_value(const Point<dim> &p,
                                            const unsigned int) const {
         (void) p;
-        return 0;
+        return 1;
     }
 
     template<int dim>
-    void RightHandSide<dim>::vector_value(const Point <dim> &p,
+    void RightHandSide<dim>::vector_value(const Point<dim> &p,
                                           Tensor<1, dim> &value) const {
         for (unsigned int c = 0; c < dim; ++c)
             value[c] = point_value(p, c);
     }
 
     template<int dim>
-    void RightHandSide<dim>::value_list(const std::vector <Point<dim>> &points,
-                                        std::vector <Tensor<1, dim>> &values) const {
+    void RightHandSide<dim>::value_list(const std::vector<Point<dim>> &points,
+                                        std::vector<Tensor<1, dim>> &values) const {
         AssertDimension(points.size(), values.size());
         for (unsigned int i = 0; i < values.size(); ++i) {
             vector_value(points[i], values[i]);
@@ -32,7 +32,7 @@ namespace AdvectionDiffusionVector {
 
 
     template<int dim>
-    double BoundaryValues<dim>::point_value(const Point <dim> &p,
+    double BoundaryValues<dim>::point_value(const Point<dim> &p,
                                             const unsigned int component) const {
         (void) p;
         if (component == 0 && p[0] == 0) {
@@ -45,19 +45,28 @@ namespace AdvectionDiffusionVector {
     }
 
     template<int dim>
-    void BoundaryValues<dim>::vector_value(const Point <dim> &p,
+    void BoundaryValues<dim>::vector_value(const Point<dim> &p,
                                            Tensor<1, dim> &value) const {
         for (unsigned int c = 0; c < dim; ++c)
             value[c] = point_value(p, c);
     }
 
     template<int dim>
-    void BoundaryValues<dim>::value_list(const std::vector <Point<dim>> &points,
-                                         std::vector <Tensor<1, dim>> &values) const {
+    void BoundaryValues<dim>::value_list(const std::vector<Point<dim>> &points,
+                                         std::vector<Tensor<1, dim>> &values) const {
         AssertDimension(points.size(), values.size());
         for (unsigned int i = 0; i < values.size(); ++i) {
             vector_value(points[i], values[i]);
         }
+    }
+
+    template<int dim>
+    Tensor<1, dim> VectorField<dim>::value(const Point<dim> &p) const {
+        (void) p;
+        Tensor<1, dim> value;
+        value[0] = 0;
+        value[1] = 1;
+        return value;
     }
 
 
@@ -66,4 +75,7 @@ namespace AdvectionDiffusionVector {
 
     template
     class BoundaryValues<2>;
+
+    template
+    class VectorField<2>;
 }
