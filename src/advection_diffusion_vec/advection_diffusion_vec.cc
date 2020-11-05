@@ -129,16 +129,16 @@ namespace AdvectionDiffusionVector {
                 fe.degree + 2);  // TODO degree+1 eller +2?
         QGauss<dim - 1> face_quadrature_formula(fe.degree + 1);
 
-        FEValues<dim> fe_v(fe,
-                           quadrature_formula,
-                           update_values | update_gradients |
-                           update_quadrature_points | update_JxW_values);
-        FEFaceValues<dim> fe_fv(fe,
-                                face_quadrature_formula,
-                                update_values | update_gradients |
-                                update_quadrature_points |
-                                update_normal_vectors |
-                                update_JxW_values);
+        FEValues <dim> fe_v(fe,
+                            quadrature_formula,
+                            update_values | update_gradients |
+                            update_quadrature_points | update_JxW_values);
+        FEFaceValues <dim> fe_fv(fe,
+                                 face_quadrature_formula,
+                                 update_values | update_gradients |
+                                 update_quadrature_points |
+                                 update_normal_vectors |
+                                 update_JxW_values);
 
         const unsigned int dofs_per_cell = fe.dofs_per_cell;
         const unsigned int n_q_points = quadrature_formula.size();
@@ -194,6 +194,9 @@ namespace AdvectionDiffusionVector {
                         local_matrix(i, j) +=
                                 (scalar_product(grad_phi[j],
                                                 grad_phi[i]) // (∇u, ∇v)
+                                 +
+                                 grad_phi[j] * b_q
+                                 * phi[i]
                                 ) * fe_v.JxW(q);          // dx
                     }
                     // RHS
@@ -235,6 +238,9 @@ namespace AdvectionDiffusionVector {
                                          (grad_phi[i] * normal)  // -(u, n ∇v)
                                          +
                                          mu * phi[j] * phi[i]    // μ(u, v)
+                                         -
+                                         b_q * normal *
+                                         phi[j] * phi[i]
                                         ) *
                                         fe_fv.JxW(q);            // ds
                             }
@@ -244,6 +250,9 @@ namespace AdvectionDiffusionVector {
                                      (grad_phi[i] * normal)      // -(g, n ∇v)
                                      +
                                      mu * bdd_values[q] * phi[i] // μ(g, v)
+                                     -
+                                     b_q * normal *
+                                     bdd_values[q] * phi[i]
                                     ) * fe_fv.JxW(q);            // ds
                         }
                     }

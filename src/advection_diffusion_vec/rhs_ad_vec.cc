@@ -14,8 +14,12 @@ namespace AdvectionDiffusionVector {
         double y = p[1];
 
         Tensor<1, dim> value;
-        value[0] = -2 * pi * pi * sin(pi * y) * cos(pi * x);
-        value[1] = 2 * pi * pi * sin(pi * x) * cos(pi * y);
+        value[0] = -pi * sin(pi * x) * sin(pi * y) * sin(pi * y) * cos(pi * x) -
+                   pi * sin(pi * x) * cos(pi * x) * cos(pi * y) * cos(pi * y) -
+                   2 * pi * pi * sin(pi * y) * cos(pi * x);
+        value[1] = -pi * sin(pi * x) * sin(pi * x) * sin(pi * y) * cos(pi * y) +
+                   2 * pi * pi * sin(pi * x) * cos(pi * y) -
+                   pi * sin(pi * y) * cos(pi * x) * cos(pi * x) * cos(pi * y);
         return value;
     }
 
