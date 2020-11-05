@@ -14,6 +14,6 @@ int main() {
     StokesNitsche<2> stokes(degree,
                            rhs,
                            boundary_values,
-                           1);
+                           100);
     stokes.run();
 }

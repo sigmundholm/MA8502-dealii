@@ -55,8 +55,8 @@ namespace AdvectionDiffusionVector {
 
     template<int dim>
     void StokesNitsche<dim>::make_grid() {
-        Point<dim> p1(-1, -1);
-        Point<dim> p2(1, 1);
+        Point <dim> p1(0, 0);
+        Point <dim> p2(1, 1);
         GridGenerator::hyper_rectangle(triangulation, p1, p2, true);
         triangulation.refine_global(dim == 2 ? 3 : 0);
     }

@@ -13,26 +13,16 @@ namespace AdvectionDiffusionVector {
     template<int dim>
     class RightHandSide : public TensorFunction<1, dim> {
     public:
-        virtual double point_value(const Point<dim> &p,
-                                   const unsigned int component = 0) const;
-
-        void vector_value(const Point<dim> &p, Tensor<1, dim> &value) const;
-
-        void value_list(const std::vector<Point<dim>> &points,
-                        std::vector<Tensor<1, dim>> &values) const override;
+        Tensor<1, dim>
+        value(const Point<dim> &p) const override;
     };
 
 
     template<int dim>
     class BoundaryValues : public TensorFunction<1, dim> {
     public:
-        virtual double
-        point_value(const Point<dim> &p, const unsigned int component) const;
-
-        void vector_value(const Point<dim> &p, Tensor<1, dim> &value) const;
-
-        void value_list(const std::vector<Point<dim>> &points,
-                        std::vector<Tensor<1, dim>> &values) const override;
+        Tensor<1, dim>
+        value(const Point<dim> &p) const override;
     };
 
 

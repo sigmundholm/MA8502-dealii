@@ -1,6 +1,6 @@
-
-
 #include "rhs_ad_vec.h"
+
+#define pi 3.141592653589793
 
 using namespace dealii;
 
@@ -8,64 +8,41 @@ using namespace dealii;
 namespace AdvectionDiffusionVector {
 
     template<int dim>
-    double RightHandSide<dim>::point_value(const Point<dim> &p,
-                                           const unsigned int) const {
-        (void) p;
-        return 1;
-    }
+    Tensor<1, dim> RightHandSide<dim>::
+    value(const Point<dim> &p) const {
+        double x = p[0];
+        double y = p[1];
 
-    template<int dim>
-    void RightHandSide<dim>::vector_value(const Point<dim> &p,
-                                          Tensor<1, dim> &value) const {
-        for (unsigned int c = 0; c < dim; ++c)
-            value[c] = point_value(p, c);
-    }
-
-    template<int dim>
-    void RightHandSide<dim>::value_list(const std::vector<Point<dim>> &points,
-                                        std::vector<Tensor<1, dim>> &values) const {
-        AssertDimension(points.size(), values.size());
-        for (unsigned int i = 0; i < values.size(); ++i) {
-            vector_value(points[i], values[i]);
-        }
-    }
-
-
-    template<int dim>
-    double BoundaryValues<dim>::point_value(const Point<dim> &p,
-                                            const unsigned int component) const {
-        (void) p;
-        if (component == 0 && p[0] == 0) {
-            if (dim == 2) {
-                return -2.5 * (p[1] - 0.41) * p[1];
-            }
-            throw std::exception(); // TODO fix 3D
-        }
-        return 0;
-    }
-
-    template<int dim>
-    void BoundaryValues<dim>::vector_value(const Point<dim> &p,
-                                           Tensor<1, dim> &value) const {
-        for (unsigned int c = 0; c < dim; ++c)
-            value[c] = point_value(p, c);
-    }
-
-    template<int dim>
-    void BoundaryValues<dim>::value_list(const std::vector<Point<dim>> &points,
-                                         std::vector<Tensor<1, dim>> &values) const {
-        AssertDimension(points.size(), values.size());
-        for (unsigned int i = 0; i < values.size(); ++i) {
-            vector_value(points[i], values[i]);
-        }
-    }
-
-    template<int dim>
-    Tensor<1, dim> VectorField<dim>::value(const Point<dim> &p) const {
-        (void) p;
         Tensor<1, dim> value;
-        value[0] = 0;
-        value[1] = 1;
+        value[0] = -pi * sin(pi * x) * sin(pi * y) * sin(pi * y) * cos(pi * x) -
+                   pi * sin(pi * x) * cos(pi * x) * cos(pi * y) * cos(pi * y) -
+                   2 * pi * pi * sin(pi * y) * cos(pi * x);
+        value[1] = -pi * sin(pi * x) * sin(pi * x) * sin(pi * y) * cos(pi * y) +
+                   2 * pi * pi * sin(pi * x) * cos(pi * y) -
+                   pi * sin(pi * y) * cos(pi * x) * cos(pi * x) * cos(pi * y);
+        return value;
+    }
+
+    template<int dim>
+    Tensor<1, dim> BoundaryValues<dim>::
+    value(const Point<dim> &p) const {
+        double x = p[0];
+        double y = p[1];
+        Tensor<1, dim> value;
+        value[0] = -sin(pi * y) * cos(pi * x);
+        value[1] = sin(pi * x) * cos(pi * y);
+        return value;
+    }
+
+
+    template<int dim>
+    Tensor<1, dim> VectorField<dim>::
+    value(const Point<dim> &p) const {
+        double x = p[0];
+        double y = p[1];
+        Tensor<1, dim> value;
+        value[0] = -sin(pi * y) * cos(pi * x);
+        value[1] = sin(pi * x) * cos(pi * y);
         return value;
     }
 
