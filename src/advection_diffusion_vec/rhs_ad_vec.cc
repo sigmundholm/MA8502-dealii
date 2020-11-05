@@ -36,6 +36,18 @@ namespace AdvectionDiffusionVector {
 
 
     template<int dim>
+    Tensor<1, dim> AnalyticalSolution<dim>::
+    value(const Point<dim> &p) const {
+        double x = p[0];
+        double y = p[1];
+        Tensor<1, dim> value;
+        value[0] = -sin(pi * y) * cos(pi * x);
+        value[1] = sin(pi * x) * cos(pi * y);
+        return value;
+    }
+
+
+    template<int dim>
     Tensor<1, dim> VectorField<dim>::
     value(const Point<dim> &p) const {
         double x = p[0];
@@ -54,5 +66,9 @@ namespace AdvectionDiffusionVector {
     class BoundaryValues<2>;
 
     template
+    class AnalyticalSolution<2>;
+
+    template
     class VectorField<2>;
-}
+
+} // namespace AdvectionDiffusionVector

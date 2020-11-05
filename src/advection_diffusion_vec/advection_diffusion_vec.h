@@ -7,6 +7,7 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_system.h>
+#include <deal.II/fe/fe_values.h>
 
 #include "rhs_ad_vec.h"
 
@@ -18,13 +19,20 @@ namespace AdvectionDiffusionVector {
 
 
     template<int dim>
-    class StokesNitsche {
+    class AdvectionDiffusion {
     public:
-        StokesNitsche(const unsigned int degree, RightHandSide <dim> &rhs,
-                      BoundaryValues <dim> &bdd_val,
-                      unsigned int do_nothing_bdd_id = 1);
+        AdvectionDiffusion(const unsigned int degree,
+                           const unsigned int n_refines,
+                           TensorFunction<1, dim> &rhs,
+                           TensorFunction<1, dim> &bdd_val,
+                           TensorFunction<1, dim> &analytical_soln,
+                           unsigned int do_nothing_bdd_id = 1);
 
-        virtual void run();
+        Error run();
+
+        static void write_header_to_file(std::ofstream &file);
+
+        static void write_error_to_file(Error &error, std::ofstream &file);
 
     protected:
         virtual void make_grid();
@@ -39,21 +47,33 @@ namespace AdvectionDiffusionVector {
 
         void output_results() const;
 
+        Error compute_error();
+
+        void integrate_cell(const FEValues<dim> &fe_values,
+                            double &l2_error_integral_u,
+                            double &h1_error_integral_u) const;
+
+
         const unsigned int degree;
+        const unsigned int n_refines;
+
         Triangulation<dim> triangulation;
         FESystem<dim> fe;
         DoFHandler<dim> dof_handler;
-        RightHandSide <dim> *right_hand_side;
-        BoundaryValues <dim> *boundary_values;
+        TensorFunction<1, dim> *right_hand_side;
+        TensorFunction<1, dim> *boundary_values;
+        TensorFunction<1, dim> *analytical_solution;
         const unsigned int do_nothing_bdd_id;
 
         SparsityPattern sparsity_pattern;
         SparseMatrix<double> system_matrix;
         Vector<double> solution;
         Vector<double> system_rhs;
+
+        double h = 0;
     };
 
-}
+} // namespace AdvectionDiffusionVector
 
 
 #endif //MA8502_PROJECT_ADVECTION_DIFFUSION_VEC_H

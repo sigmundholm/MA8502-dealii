@@ -40,29 +40,33 @@ namespace AdvectionDiffusionVector {
 
 
     template<int dim>
-    StokesNitsche<dim>::StokesNitsche(const unsigned int degree,
-                                      RightHandSide<dim> &rhs,
-                                      BoundaryValues<dim> &bdd_val,
-                                      const unsigned int do_nothing_bdd_id)
-            : degree(degree),
+    AdvectionDiffusion<dim>::
+    AdvectionDiffusion(const unsigned int degree,
+                       const unsigned int n_refines,
+                       TensorFunction<1, dim> &rhs,
+                       TensorFunction<1, dim> &bdd_val,
+                       TensorFunction<1, dim> &analytical_soln,
+                       const unsigned int do_nothing_bdd_id)
+            : degree(degree), n_refines(n_refines),
               fe(FESystem<dim>(FE_Q<dim>(degree + 1),
                                dim)), // u (with dim components)
               dof_handler(triangulation), do_nothing_bdd_id(do_nothing_bdd_id) {
         right_hand_side = &rhs;
         boundary_values = &bdd_val;
+        analytical_solution = &analytical_soln;
     }
 
 
     template<int dim>
-    void StokesNitsche<dim>::make_grid() {
-        Point <dim> p1(0, 0);
-        Point <dim> p2(1, 1);
+    void AdvectionDiffusion<dim>::make_grid() {
+        Point<dim> p1(0, 0);
+        Point<dim> p2(1, 1);
         GridGenerator::hyper_rectangle(triangulation, p1, p2, true);
-        triangulation.refine_global(dim == 2 ? 3 : 0);
+        triangulation.refine_global(n_refines);
     }
 
     template<int dim>
-    void StokesNitsche<dim>::output_grid() {
+    void AdvectionDiffusion<dim>::output_grid() {
         // Write svg of grid to file.
         if (dim == 2) {
             std::ofstream out("grid.svg");
@@ -81,10 +85,21 @@ namespace AdvectionDiffusionVector {
     }
 
     template<int dim>
-    void StokesNitsche<dim>::setup_dofs() {
+    void AdvectionDiffusion<dim>::setup_dofs() {
         dof_handler.distribute_dofs(fe);
         DoFRenumbering::Cuthill_McKee(dof_handler);
         DoFRenumbering::component_wise(dof_handler);  // TODO hva gjør denne?
+
+        // Find h
+        for (const auto &cell : dof_handler.active_cell_iterators()) {
+            for (const auto &face : cell->face_iterators()) {
+                double h_k = std::pow(face->measure(), 1.0 / (dim - 1));
+                if (h_k > h) {
+                    h = h_k;
+                }
+            }
+        }
+        std::cout << "  h = " << std::to_string(h) << std::endl;
 
         const std::vector<types::global_dof_index> dofs_per_block =
                 DoFTools::count_dofs_per_fe_block(dof_handler);
@@ -106,7 +121,7 @@ namespace AdvectionDiffusionVector {
     }
 
     template<int dim>
-    void StokesNitsche<dim>::assemble_system() {
+    void AdvectionDiffusion<dim>::assemble_system() {
         system_matrix = 0;
         system_rhs = 0;
 
@@ -149,7 +164,6 @@ namespace AdvectionDiffusionVector {
 
         VectorField<dim> vector_field;
 
-        double h;
         double mu;
         Tensor<1, dim> normal;
         Point<dim> x_q;
@@ -204,7 +218,6 @@ namespace AdvectionDiffusionVector {
                     boundary_values->value_list(
                             fe_face_values.get_quadrature_points(), bdd_values);
 
-                    h = std::pow(face->measure(), 1.0 / (dim - 1));
                     mu = 50 / h;  // Penalty parameter
 
                     for (unsigned int q : fe_face_values.quadrature_point_indices()) {
@@ -263,7 +276,7 @@ namespace AdvectionDiffusionVector {
     }
 
     template<int dim>
-    void StokesNitsche<dim>::solve() {
+    void AdvectionDiffusion<dim>::solve() {
         std::cout << "  Solving the system." << std::endl;
         SparseDirectUMFPACK inverse;
         inverse.initialize(system_matrix);
@@ -271,7 +284,7 @@ namespace AdvectionDiffusionVector {
     }
 
     template<int dim>
-    void StokesNitsche<dim>::output_results() const {
+    void AdvectionDiffusion<dim>::output_results() const {
         // TODO se også Handling VVP.
         // see step-22
         std::vector<std::string> solution_names(dim, "velocity");
@@ -288,24 +301,104 @@ namespace AdvectionDiffusionVector {
                                  DataOut<dim>::type_dof_data, dci);
 
         data_out.build_patches();
-        std::ofstream output("solution.vtk");
+        std::ofstream output("results-d" + std::to_string(degree) + "r" +
+                             std::to_string(n_refines) + ".vtk");
         data_out.write_vtk(output);
         std::cout << "  Output written to .vtk file." << std::endl;
     }
 
+
     template<int dim>
-    void StokesNitsche<dim>::run() {
+    Error AdvectionDiffusion<dim>::
+    compute_error() {
+        QGauss<dim> quadrature_formula(
+                fe.degree + 2);  // TODO degree+1 eller +2?
+
+        FEValues<dim> fe_values(fe,
+                                quadrature_formula,
+                                update_values | update_gradients |
+                                update_quadrature_points | update_JxW_values);
+
+        double l2_error_integral = 0;
+        double h1_error_integral = 0;
+
+        // Loop through all cells and calculate the norms.
+        for (const auto &cell : this->dof_handler.active_cell_iterators()) {
+            fe_values.reinit(cell);
+            integrate_cell(fe_values, l2_error_integral, h1_error_integral);
+        }
+
+        Error error;
+        error.mesh_size = h;
+        error.l2_error = pow(l2_error_integral, 0.5);
+        error.h1_error = pow(l2_error_integral + h1_error_integral, 0.5);
+        return error;
+    }
+
+
+    template<int dim>
+    void AdvectionDiffusion<dim>::
+    integrate_cell(const FEValues<dim> &fe_values,
+                   double &l2_error_integral,
+                   double &h1_error_integral) const {
+
+        const FEValuesExtractors::Vector velocities(0);
+
+        // Extract the solution values and gradients from the solution vector.
+        std::vector<Tensor<1, dim>> solution_values(
+                fe_values.n_quadrature_points);
+        std::vector<Tensor<2, dim>> gradients(fe_values.n_quadrature_points);
+
+        fe_values[velocities].get_function_values(this->solution,
+                                                  solution_values);
+        fe_values[velocities].get_function_gradients(this->solution, gradients);
+
+        // Exact solution
+        std::vector<Tensor<1, dim>> exact_solution(
+                fe_values.n_quadrature_points,
+                Tensor<1, dim>());
+        analytical_solution->value_list(fe_values.get_quadrature_points(),
+                                        exact_solution);
+
+        // TODO calculate the gradient in the analytical solution too, for H1 norm.
+        for (unsigned int q = 0; q < fe_values.n_quadrature_points; ++q) {
+            Tensor<1, dim> diff = exact_solution[q] - solution_values[q];
+
+            l2_error_integral += diff * diff * fe_values.JxW(q);
+        }
+    }
+
+
+    template<int dim>
+    void AdvectionDiffusion<dim>::
+    write_header_to_file(std::ofstream &file) {
+        file << "h, e_L2, e_H1" << std::endl;
+    }
+
+
+    template<int dim>
+    void AdvectionDiffusion<dim>::
+    write_error_to_file(Error &error, std::ofstream &file) {
+        file << error.mesh_size << ","
+             << error.l2_error << ","
+             << error.h1_error << std::endl;
+    }
+
+
+    template<int dim>
+    Error AdvectionDiffusion<dim>::run() {
         make_grid();
         output_grid();
         setup_dofs();
         assemble_system();
         solve();
         output_results();
+        return compute_error();
     }
 
 
     // Initialise the templates.
     template
-    class StokesNitsche<2>;
+    class AdvectionDiffusion<2>;
 
-} // namespace Stokes
+} // namespace AdvectionDiffusionVector
