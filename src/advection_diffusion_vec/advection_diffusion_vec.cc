@@ -164,6 +164,7 @@ namespace AdvectionDiffusionVector {
 
         VectorField<dim> vector_field;
 
+        double gamma;
         double mu;
         Tensor<1, dim> normal;
         Point<dim> x_q;
@@ -193,9 +194,6 @@ namespace AdvectionDiffusionVector {
                         local_matrix(i, j) +=
                                 (scalar_product(grad_phi[j],
                                                 grad_phi[i]) // (∇u, ∇v)
-                                 +
-                                 ((b_q * grad_phi[j]) *      // (b∇u, v)
-                                  phi[i])
                                 ) * fe_v.JxW(q);          // dx
                     }
                     // RHS
@@ -213,8 +211,8 @@ namespace AdvectionDiffusionVector {
                     // Evaluate the boundary function for all quadrature points on this face.
                     boundary_values->value_list(fe_fv.get_quadrature_points(),
                                                 bdd_values);
-
-                    mu = 50 / h;  // Penalty parameter
+                    gamma = 10 * degree * (degree + 1);
+                    mu = gamma / h;  // Penalty parameter
 
                     for (unsigned int q : fe_fv.quadrature_point_indices()) {
                         x_q = fe_fv.quadrature_point(q);
@@ -232,12 +230,9 @@ namespace AdvectionDiffusionVector {
                                 local_matrix(i, j) +=
                                         (-(grad_phi[j] * normal)
                                          * phi[i]                // -(n ∇u, v)
-                                         +
-                                         mu * phi[j] *
-                                         (b_q * grad_phi[i])     // μ(u, b ∇v)
                                          -
-                                         mu * phi[j] *
-                                         (normal * grad_phi[i])  // -μ(u, n ∇v)
+                                         phi[j] *
+                                         (grad_phi[i] * normal)  // -(u, n ∇v)
                                          +
                                          mu * phi[j] * phi[i]    // μ(u, v)
                                         ) *
@@ -245,11 +240,8 @@ namespace AdvectionDiffusionVector {
                             }
 
                             local_rhs(i) +=
-                                    (mu * bdd_values[q] *
-                                     (b_q * grad_phi[i])         // μ(g, b ∇v)
-                                     -
-                                     mu * bdd_values[q] *
-                                     (normal * grad_phi[i])      // -μ(g, n ∇v)
+                                    (-bdd_values[q] *
+                                     (grad_phi[i] * normal)      // -(g, n ∇v)
                                      +
                                      mu * bdd_values[q] * phi[i] // μ(g, v)
                                     ) * fe_fv.JxW(q);            // ds
