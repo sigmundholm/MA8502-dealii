@@ -48,7 +48,7 @@ namespace AdvectionDiffusionVector {
                        TensorFunction<1, dim> &analytical_soln,
                        const unsigned int do_nothing_bdd_id)
             : degree(degree), n_refines(n_refines),
-              fe(FESystem<dim>(FE_Q<dim>(degree + 1),
+              fe(FESystem<dim>(FE_Q<dim>(degree),
                                dim)), // u (with dim components)
               dof_handler(triangulation), do_nothing_bdd_id(do_nothing_bdd_id) {
         right_hand_side = &rhs;
@@ -199,22 +199,20 @@ namespace AdvectionDiffusionVector {
                                 ) * fe_v.JxW(q);          // dx
                     }
                     // RHS
-                    local_rhs(i) += rhs_values[q] * phi[i]   // (f, v)
-                                    * fe_v.JxW(q);        // dx
+                    local_rhs(i) += (rhs_values[q] * phi[i]) * // (f, v)
+                                    fe_v.JxW(q);               // dx
                 }
             }
 
 
             for (const auto &face : cell->face_iterators()) {
 
-                // The right boundary has boundary_id=1, so do nothing there for outflow.
-                if (face->at_boundary() &&
-                    face->boundary_id() != do_nothing_bdd_id) {
+                if (face->at_boundary()) {
                     fe_fv.reinit(cell, face);
 
                     // Evaluate the boundary function for all quadrature points on this face.
-                    boundary_values->value_list(
-                            fe_fv.get_quadrature_points(), bdd_values);
+                    boundary_values->value_list(fe_fv.get_quadrature_points(),
+                                                bdd_values);
 
                     mu = 50 / h;  // Penalty parameter
 
@@ -224,9 +222,7 @@ namespace AdvectionDiffusionVector {
                         normal = fe_fv.normal_vector(q);
 
                         for (const unsigned int k : fe_fv.dof_indices()) {
-                            grad_phi[k] = fe_fv[velocities].gradient(
-                                    k,
-                                    q);
+                            grad_phi[k] = fe_fv[velocities].gradient(k, q);
                             phi[k] = fe_fv[velocities].value(k, q);
                         }
 
@@ -234,25 +230,29 @@ namespace AdvectionDiffusionVector {
                             for (const unsigned int j : fe_fv.dof_indices()) {
 
                                 local_matrix(i, j) +=
-                                        (-(grad_phi[j] * normal) *
-                                         phi[i]  // -(n ∇u, v)
+                                        (-(grad_phi[j] * normal)
+                                         * phi[i]                // -(n ∇u, v)
                                          +
                                          mu * phi[j] *
-                                         (b_q * grad_phi[i])
+                                         (b_q * grad_phi[i])     // μ(u, b ∇v)
                                          -
                                          mu * phi[j] *
-                                         (normal * grad_phi[i])
+                                         (normal * grad_phi[i])  // -μ(u, n ∇v)
+                                         +
+                                         mu * phi[j] * phi[i]    // μ(u, v)
                                         ) *
-                                        fe_fv.JxW(q);       // ds
+                                        fe_fv.JxW(q);            // ds
                             }
 
                             local_rhs(i) +=
                                     (mu * bdd_values[q] *
-                                     (b_q * grad_phi[i])
+                                     (b_q * grad_phi[i])         // μ(g, b ∇v)
                                      -
                                      mu * bdd_values[q] *
-                                     (normal * grad_phi[i])
-                                    ) * fe_fv.JxW(q); // ds
+                                     (normal * grad_phi[i])      // -μ(g, n ∇v)
+                                     +
+                                     mu * bdd_values[q] * phi[i] // μ(g, v)
+                                    ) * fe_fv.JxW(q);            // ds
                         }
                     }
                 }
