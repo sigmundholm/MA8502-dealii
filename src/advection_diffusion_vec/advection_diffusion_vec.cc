@@ -129,16 +129,16 @@ namespace AdvectionDiffusionVector {
                 fe.degree + 2);  // TODO degree+1 eller +2?
         QGauss<dim - 1> face_quadrature_formula(fe.degree + 1);
 
-        FEValues<dim> fe_values(fe,
-                                quadrature_formula,
+        FEValues<dim> fe_v(fe,
+                           quadrature_formula,
+                           update_values | update_gradients |
+                           update_quadrature_points | update_JxW_values);
+        FEFaceValues<dim> fe_fv(fe,
+                                face_quadrature_formula,
                                 update_values | update_gradients |
-                                update_quadrature_points | update_JxW_values);
-        FEFaceValues<dim> fe_face_values(fe,
-                                         face_quadrature_formula,
-                                         update_values | update_gradients |
-                                         update_quadrature_points |
-                                         update_normal_vectors |
-                                         update_JxW_values);
+                                update_quadrature_points |
+                                update_normal_vectors |
+                                update_JxW_values);
 
         const unsigned int dofs_per_cell = fe.dofs_per_cell;
         const unsigned int n_q_points = quadrature_formula.size();
@@ -158,9 +158,9 @@ namespace AdvectionDiffusionVector {
         // const FEValuesExtractors::Scalar pressure(dim);
 
         // Calculate often used terms in the beginning of each cell-loop
-        std::vector<Tensor<2, dim>> grad_phi_u(dofs_per_cell);
+        std::vector<Tensor<2, dim>> grad_phi(dofs_per_cell);
         std::vector<double> div_phi_u(dofs_per_cell);
-        std::vector<Tensor<1, dim>> phi_u(dofs_per_cell, Tensor<1, dim>());
+        std::vector<Tensor<1, dim>> phi(dofs_per_cell, Tensor<1, dim>());
 
         VectorField<dim> vector_field;
 
@@ -170,39 +170,37 @@ namespace AdvectionDiffusionVector {
         Tensor<1, dim> b_q;
 
         for (const auto &cell : dof_handler.active_cell_iterators()) {
-            fe_values.reinit(cell);
+            fe_v.reinit(cell);
             local_matrix = 0;
             local_rhs = 0;
 
             // Get the values for the RightHandSide for all quadrature points in this cell.
-            right_hand_side->value_list(fe_values.get_quadrature_points(),
+            right_hand_side->value_list(fe_v.get_quadrature_points(),
                                         rhs_values);
 
             // Integrate the contribution for each cell
-            for (const unsigned int q : fe_values.quadrature_point_indices()) {
-                x_q = fe_values.quadrature_point(q);
+            for (const unsigned int q : fe_v.quadrature_point_indices()) {
+                x_q = fe_v.quadrature_point(q);
                 b_q = vector_field.value(x_q);
 
-                for (const unsigned int k : fe_values.dof_indices()) {
-                    grad_phi_u[k] = fe_values[velocities].gradient(k, q);
-                    // div_phi_u[k] = fe_values[velocities].divergence(k, q);
-                    phi_u[k] = fe_values[velocities].value(k, q);
-                    // phi_p[k] = fe_values[pressure].value(k, q);
+                for (const unsigned int k : fe_v.dof_indices()) {
+                    grad_phi[k] = fe_v[velocities].gradient(k, q);
+                    phi[k] = fe_v[velocities].value(k, q);
                 }
 
-                for (const unsigned int i : fe_values.dof_indices()) {
-                    for (const unsigned int j : fe_values.dof_indices()) {
+                for (const unsigned int i : fe_v.dof_indices()) {
+                    for (const unsigned int j : fe_v.dof_indices()) {
                         local_matrix(i, j) +=
-                                (scalar_product(grad_phi_u[j],
-                                                grad_phi_u[i]) // (∇u, ∇v)
+                                (scalar_product(grad_phi[j],
+                                                grad_phi[i]) // (∇u, ∇v)
                                  +
-                                 ((b_q * grad_phi_u[j]) *      // (b∇u, v)
-                                  phi_u[i])
-                                ) * fe_values.JxW(q);          // dx
+                                 ((b_q * grad_phi[j]) *      // (b∇u, v)
+                                  phi[i])
+                                ) * fe_v.JxW(q);          // dx
                     }
                     // RHS
-                    local_rhs(i) += rhs_values[q] * phi_u[i]   // (f, v)
-                                    * fe_values.JxW(q);        // dx
+                    local_rhs(i) += rhs_values[q] * phi[i]   // (f, v)
+                                    * fe_v.JxW(q);        // dx
                 }
             }
 
@@ -212,49 +210,49 @@ namespace AdvectionDiffusionVector {
                 // The right boundary has boundary_id=1, so do nothing there for outflow.
                 if (face->at_boundary() &&
                     face->boundary_id() != do_nothing_bdd_id) {
-                    fe_face_values.reinit(cell, face);
+                    fe_fv.reinit(cell, face);
 
                     // Evaluate the boundary function for all quadrature points on this face.
                     boundary_values->value_list(
-                            fe_face_values.get_quadrature_points(), bdd_values);
+                            fe_fv.get_quadrature_points(), bdd_values);
 
                     mu = 50 / h;  // Penalty parameter
 
-                    for (unsigned int q : fe_face_values.quadrature_point_indices()) {
-                        x_q = fe_face_values.quadrature_point(q);
+                    for (unsigned int q : fe_fv.quadrature_point_indices()) {
+                        x_q = fe_fv.quadrature_point(q);
                         b_q = vector_field.value(x_q);
-                        normal = fe_face_values.normal_vector(q);
+                        normal = fe_fv.normal_vector(q);
 
-                        for (const unsigned int k : fe_face_values.dof_indices()) {
-                            grad_phi_u[k] = fe_face_values[velocities].gradient(
+                        for (const unsigned int k : fe_fv.dof_indices()) {
+                            grad_phi[k] = fe_fv[velocities].gradient(
                                     k,
                                     q);
-                            phi_u[k] = fe_face_values[velocities].value(k, q);
+                            phi[k] = fe_fv[velocities].value(k, q);
                         }
 
-                        for (const unsigned int i : fe_face_values.dof_indices()) {
-                            for (const unsigned int j : fe_face_values.dof_indices()) {
+                        for (const unsigned int i : fe_fv.dof_indices()) {
+                            for (const unsigned int j : fe_fv.dof_indices()) {
 
                                 local_matrix(i, j) +=
-                                        (-(grad_phi_u[j] * normal) *
-                                         phi_u[i]  // -(n ∇u, v)
+                                        (-(grad_phi[j] * normal) *
+                                         phi[i]  // -(n ∇u, v)
                                          +
-                                         mu * phi_u[j] *
-                                         (b_q * grad_phi_u[i])
+                                         mu * phi[j] *
+                                         (b_q * grad_phi[i])
                                          -
-                                         mu * phi_u[j] *
-                                         (normal * grad_phi_u[i])
+                                         mu * phi[j] *
+                                         (normal * grad_phi[i])
                                         ) *
-                                        fe_face_values.JxW(q);       // ds
+                                        fe_fv.JxW(q);       // ds
                             }
 
                             local_rhs(i) +=
                                     (mu * bdd_values[q] *
-                                     (b_q * grad_phi_u[i])
+                                     (b_q * grad_phi[i])
                                      -
                                      mu * bdd_values[q] *
-                                     (normal * grad_phi_u[i])
-                                    ) * fe_face_values.JxW(q); // ds
+                                     (normal * grad_phi[i])
+                                    ) * fe_fv.JxW(q); // ds
                         }
                     }
                 }
