@@ -38,6 +38,9 @@ namespace AdvectionDiffusionVector {
     public:
         Tensor<1, dim>
         value(const Point<dim> &p) const override;
+
+        Tensor<2, dim>
+        gradient(const Point<dim> &p) const override;
     };
 
 

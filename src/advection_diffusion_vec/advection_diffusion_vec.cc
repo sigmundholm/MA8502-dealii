@@ -129,16 +129,16 @@ namespace AdvectionDiffusionVector {
                 fe.degree + 2);  // TODO degree+1 eller +2?
         QGauss<dim - 1> face_quadrature_formula(fe.degree + 1);
 
-        FEValues <dim> fe_v(fe,
-                            quadrature_formula,
-                            update_values | update_gradients |
-                            update_quadrature_points | update_JxW_values);
-        FEFaceValues <dim> fe_fv(fe,
-                                 face_quadrature_formula,
-                                 update_values | update_gradients |
-                                 update_quadrature_points |
-                                 update_normal_vectors |
-                                 update_JxW_values);
+        FEValues<dim> fe_v(fe,
+                           quadrature_formula,
+                           update_values | update_gradients |
+                           update_quadrature_points | update_JxW_values);
+        FEFaceValues<dim> fe_fv(fe,
+                                face_quadrature_formula,
+                                update_values | update_gradients |
+                                update_quadrature_points |
+                                update_normal_vectors |
+                                update_JxW_values);
 
         const unsigned int dofs_per_cell = fe.dofs_per_cell;
         const unsigned int n_q_points = quadrature_formula.size();
@@ -158,9 +158,11 @@ namespace AdvectionDiffusionVector {
         // const FEValuesExtractors::Scalar pressure(dim);
 
         // Calculate often used terms in the beginning of each cell-loop
-        std::vector<Tensor<2, dim>> grad_phi(dofs_per_cell);
+        std::vector<Tensor<2, dim>>
+                grad_phi(dofs_per_cell);
         std::vector<double> div_phi_u(dofs_per_cell);
-        std::vector<Tensor<1, dim>> phi(dofs_per_cell, Tensor<1, dim>());
+        std::vector<Tensor<1, dim>>
+                phi(dofs_per_cell, Tensor<1, dim>());
 
         VectorField<dim> vector_field;
 
@@ -344,26 +346,35 @@ namespace AdvectionDiffusionVector {
         const FEValuesExtractors::Vector velocities(0);
 
         // Extract the solution values and gradients from the solution vector.
-        std::vector<Tensor<1, dim>> solution_values(
+        std::vector<Tensor<1, dim>>
+                solution_values(
                 fe_values.n_quadrature_points);
-        std::vector<Tensor<2, dim>> gradients(fe_values.n_quadrature_points);
+        std::vector<Tensor<2, dim>>
+                gradients(fe_values.n_quadrature_points);
 
         fe_values[velocities].get_function_values(this->solution,
                                                   solution_values);
         fe_values[velocities].get_function_gradients(this->solution, gradients);
 
-        // Exact solution
-        std::vector<Tensor<1, dim>> exact_solution(
-                fe_values.n_quadrature_points,
-                Tensor<1, dim>());
+        // Exact solution values
+        std::vector<Tensor<1, dim>>
+                exact_solution(fe_values.n_quadrature_points, Tensor<1, dim>());
         analytical_solution->value_list(fe_values.get_quadrature_points(),
                                         exact_solution);
 
-        // TODO calculate the gradient in the analytical solution too, for H1 norm.
+        // Exact solution gradients
+        std::vector<Tensor<2, dim>>
+                exact_gradient(fe_values.n_quadrature_points, Tensor<2, dim>());
+        analytical_solution->gradient_list(fe_values.get_quadrature_points(),
+                                           exact_gradient);
+
         for (unsigned int q = 0; q < fe_values.n_quadrature_points; ++q) {
             Tensor<1, dim> diff = exact_solution[q] - solution_values[q];
+            Tensor<2, dim> gradient_diff = gradients[q] - exact_gradient[q];
 
             l2_error_integral += diff * diff * fe_values.JxW(q);
+            h1_error_integral += scalar_product(gradient_diff, gradient_diff) *
+                                 fe_values.JxW(q);
         }
     }
 
@@ -371,7 +382,7 @@ namespace AdvectionDiffusionVector {
     template<int dim>
     void AdvectionDiffusion<dim>::
     write_header_to_file(std::ofstream &file) {
-        file << "h, e_L2, e_H1" << std::endl;
+        file << "h, e_{L^2}, e_{H^1}" << std::endl;
     }
 
 

@@ -46,6 +46,19 @@ namespace AdvectionDiffusionVector {
         return value;
     }
 
+    template<int dim>
+    Tensor<2, dim> AnalyticalSolution<dim>::
+    gradient(const Point<dim> &p) const {
+        double x = p[0];
+        double y = p[1];
+        Tensor<2, dim> value;
+        value[0][0] = pi*sin(pi*x)*sin(pi*y);
+        value[0][1] = -pi*cos(pi*x)*cos(pi*y);
+        value[1][0] = pi*cos(pi*x)*cos(pi*y);
+        value[1][1] = -pi*sin(pi*x)*sin(pi*y);
+        return value;
+    }
+
 
     template<int dim>
     Tensor<1, dim> VectorField<dim>::

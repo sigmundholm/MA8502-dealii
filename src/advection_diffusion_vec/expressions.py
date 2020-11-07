@@ -61,3 +61,5 @@ if __name__ == '__main__':
     print("u_2 =", u_2)
     print("f_1 =", f_1)
     print("f_2 =", f_2)
+    print("grad u_1 =", grad(u_1))
+    print("grad u_2 =", grad(u_2))
