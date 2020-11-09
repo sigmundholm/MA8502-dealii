@@ -1,16 +1,16 @@
 #include <iostream>
+
+#include "rhs_st.h"
 #include "stokes.h"
 
 int main() {
     std::cout << "Stokes" << std::endl;
     {
-        using namespace Stokes;
-
         const int dim = 2;
-        RightHandSide<dim> rhs;
-        BoundaryValues<dim> bdd_vals;
+        Stokes::RightHandSide<dim> rhs;
+        Stokes::BoundaryValues<dim> bdd_vals;
 
-        StokesNitsche<dim> stokesNitsche(1, rhs, bdd_vals);
-        stokesNitsche.run();
+        Stokes::Stokes<dim> stokes(1, rhs, bdd_vals);
+        stokes.run();
     }
 }

@@ -1,45 +1,23 @@
-#include <deal.II/base/tensor_function.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_system.h>
 
+#include "rhs_st.h"
 
 using namespace dealii;
 
 
 namespace Stokes {
 
-    template<int dim>
-    class RightHandSide : public TensorFunction<1, dim> {
-    public:
-        virtual double point_value(const Point<dim> &p, const unsigned int component = 0) const;
-
-        void vector_value(const Point<dim> &p, Tensor<1, dim> &value) const;
-
-        void value_list(const std::vector<Point<dim>> &points,
-                        std::vector<Tensor<1, dim>> &values) const override;
-    };
-
 
     template<int dim>
-    class BoundaryValues : public TensorFunction<1, dim> {
+    class Stokes {
     public:
-        virtual double point_value(const Point<dim> &p, const unsigned int component) const;
-
-        void vector_value(const Point<dim> &p, Tensor<1, dim> &value) const;
-
-        void value_list(const std::vector<Point<dim>> &points,
-                        std::vector<Tensor<1, dim>> &values) const override;
-    };
-
-
-    template<int dim>
-    class StokesNitsche {
-    public:
-        StokesNitsche(const unsigned int degree, RightHandSide<dim> &rhs, BoundaryValues<dim> &bdd_val,
-                      unsigned int do_nothing_bdd_id=1);
+        Stokes(const unsigned int degree, RightHandSide<dim> &rhs,
+               BoundaryValues<dim> &bdd_val,
+               unsigned int do_nothing_bdd_id = 1);
 
         virtual void run();
 
