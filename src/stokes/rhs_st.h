@@ -13,7 +13,7 @@ namespace Stokes {
     class RightHandSide : public TensorFunction<1, dim> {
     public:
         Tensor<1, dim>
-        value(const Point <dim> &p) const override;
+        value(const Point<dim> &p) const override;
     };
 
 
@@ -21,8 +21,25 @@ namespace Stokes {
     class BoundaryValues : public TensorFunction<1, dim> {
     public:
         Tensor<1, dim>
-        value(const Point <dim> &p) const override;
+        value(const Point<dim> &p) const override;
     };
+
+
+    template<int dim>
+    class AnalyticalVelocity : public TensorFunction<1, dim> {
+    public:
+        Tensor<1, dim>
+        value(const Point<dim> &p) const override;
+    };
+
+
+    template<int dim>
+    class AnalyticalPressure : public Function<dim> {
+    public:
+        double
+        value(const Point<dim> &p) const override;
+    };
+
 }
 
 

@@ -10,7 +10,7 @@ int main() {
         Stokes::RightHandSide<dim> rhs;
         Stokes::BoundaryValues<dim> bdd_vals;
 
-        Stokes::Stokes<dim> stokes(1, rhs, bdd_vals);
+        Stokes::Stokes<dim> stokes(1, rhs, bdd_vals, 10);
         stokes.run();
     }
 }

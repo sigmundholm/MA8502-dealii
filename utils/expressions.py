@@ -17,6 +17,11 @@ def div(func):
     return sp.diff(func[0], x) + sp.diff(func[1], y)
 
 
+def laplace(func):
+    x, y = sp.var("x y")
+    return sp.diff(sp.diff(func, x), x) + sp.diff(sp.diff(func, y), y)
+
+
 def equation(x, y, eps, b, u, f):
     """
     This implements the operator L st.
