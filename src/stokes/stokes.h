@@ -15,11 +15,19 @@ namespace Stokes {
     template<int dim>
     class Stokes {
     public:
-        Stokes(const unsigned int degree, RightHandSide<dim> &rhs,
-               BoundaryValues<dim> &bdd_val,
+        Stokes(const unsigned int degree,
+               const int n_refines,
+               TensorFunction<1, dim> &rhs,
+               TensorFunction<1, dim> &bdd_val,
+               TensorFunction<1, dim> &analytical_u,
+               Function<dim> &analytical_p,
                unsigned int do_nothing_bdd_id = 1);
 
-        virtual void run();
+        Error run();
+
+        static void write_header_to_file(std::ofstream &file);
+
+        static void write_error_to_file(Error &error, std::ofstream &file);
 
     protected:
         virtual void make_grid();
@@ -34,13 +42,25 @@ namespace Stokes {
 
         void output_results() const;
 
+        Error compute_error();
+
+        void integrate_cell(const FEValues<dim, dim> &fe_values,
+                            double &l2_error_integral_u,
+                            double &h1_error_integral_u) const;
+
         const unsigned int degree;
+        const int n_refines;
         Triangulation<dim> triangulation;
         FESystem<dim> fe;
         DoFHandler<dim> dof_handler;
-        RightHandSide<dim> *right_hand_side;
-        BoundaryValues<dim> *boundary_values;
+
+        TensorFunction<1, dim> *right_hand_side;
+        TensorFunction<1, dim> *boundary_values;
+        TensorFunction<1, dim> *analytical_velocity;
+        Function<dim> *analytical_pressure;
+
         const unsigned int do_nothing_bdd_id;
+        double h = 0;
 
         SparsityPattern sparsity_pattern;
         SparseMatrix<double> system_matrix;

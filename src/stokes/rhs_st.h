@@ -9,6 +9,14 @@ using namespace dealii;
 
 namespace Stokes {
 
+    struct Error {
+        double mesh_size = 0;
+        double u_l2_error = 0;
+        double u_h1_error = 0;
+        double p_l2_error = 0;
+        double p_h1_error = 0;
+    };
+
     template<int dim>
     class RightHandSide : public TensorFunction<1, dim> {
     public:
@@ -30,6 +38,9 @@ namespace Stokes {
     public:
         Tensor<1, dim>
         value(const Point<dim> &p) const override;
+
+        Tensor<2, dim>
+        gradient(const Point<dim> &p) const override;
     };
 
 
@@ -37,7 +48,11 @@ namespace Stokes {
     class AnalyticalPressure : public Function<dim> {
     public:
         double
-        value(const Point<dim> &p) const override;
+        value(const Point<dim> &p, const unsigned int component) const override;
+
+        Tensor<1, dim>
+        gradient(const Point<dim> &p,
+                 const unsigned int component) const override;
     };
 
 }

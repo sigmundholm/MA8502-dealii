@@ -31,6 +31,10 @@ if __name__ == '__main__':
     print("u_1 =", u1)
     print("u_2 =", u2)
     print("p =", p)
-    print()
-    print("f_1 =", f1)
+
+    print("\ngrad u_1 =", grad(u1))
+    print("grad u_2 =", grad(u2))
+    print("grad p =", grad(p))
+
+    print("\nf_1 =", f1)
     print("f_2 =", f2)

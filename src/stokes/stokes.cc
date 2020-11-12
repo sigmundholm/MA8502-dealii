@@ -38,23 +38,28 @@ namespace Stokes {
 
     template<int dim>
     Stokes<dim>::Stokes(const unsigned int degree,
-                        RightHandSide<dim> &rhs,
-                        BoundaryValues<dim> &bdd_val,
-                        const unsigned int do_nothing_bdd_id)
-            : degree(degree),
+                        const int n_refines,
+                        TensorFunction<1, dim> &rhs,
+                        TensorFunction<1, dim> &bdd_val,
+                        TensorFunction<1, dim> &analytical_u,
+                        Function<dim> &analytical_p,
+                        unsigned int do_nothing_bdd_id)
+            : degree(degree), n_refines(n_refines),
               fe(FESystem<dim>(FE_Q<dim>(degree + 1), dim), 1,
                  FE_Q<dim>(degree),
                  1), // u (with dim components), p (scalar component)
               dof_handler(triangulation), do_nothing_bdd_id(do_nothing_bdd_id) {
         right_hand_side = &rhs;
         boundary_values = &bdd_val;
+        analytical_velocity = &analytical_u;
+        analytical_pressure = &analytical_p;
     }
 
 
     template<int dim>
     void Stokes<dim>::make_grid() {
         GridGenerator::channel_with_cylinder(triangulation, 0.03, 2, 2.0, true);
-        triangulation.refine_global(2);
+        triangulation.refine_global(n_refines);
     }
 
     template<int dim>
@@ -80,6 +85,17 @@ namespace Stokes {
         dof_handler.distribute_dofs(fe);
         DoFRenumbering::Cuthill_McKee(dof_handler);
         DoFRenumbering::component_wise(dof_handler);  // TODO hva gjør denne?
+
+        // Find h
+        for (const auto &cell : dof_handler.active_cell_iterators()) {
+            for (const auto &face : cell->face_iterators()) {
+                double h_k = std::pow(face->measure(), 1.0 / (dim - 1));
+                if (h_k > h) {
+                    h = h_k;
+                }
+            }
+        }
+        std::cout << "  h = " << std::to_string(h) << std::endl;
 
         const std::vector<types::global_dof_index> dofs_per_block =
                 DoFTools::count_dofs_per_fe_block(dof_handler);
@@ -279,19 +295,107 @@ namespace Stokes {
                                  DataOut<dim>::type_dof_data, dci);
 
         data_out.build_patches();
-        std::ofstream output("nitsche-stokes.vtk");
+        std::ofstream output("nitsche-stokes-o" +
+                             std::to_string(degree) +
+                             "r" + std::to_string(n_refines) + ".vtk");
         data_out.write_vtk(output);
         std::cout << "  Output written to .vtk file." << std::endl;
     }
 
     template<int dim>
-    void Stokes<dim>::run() {
+    Error Stokes<dim>::
+    compute_error() {
+        QGauss<dim> quadrature_formula(
+                fe.degree + 2);  // TODO degree+1 eller +2?
+
+        FEValues<dim> fe_values(fe,
+                                quadrature_formula,
+                                update_values | update_gradients |
+                                update_quadrature_points | update_JxW_values);
+
+        double l2_error_integral = 0;
+        double h1_error_integral = 0;
+
+        // Loop through all cells and calculate the norms.
+        for (const auto &cell : this->dof_handler.active_cell_iterators()) {
+            fe_values.reinit(cell);
+            integrate_cell(fe_values, l2_error_integral, h1_error_integral);
+        }
+
+        Error error;
+        error.mesh_size = h;
+        error.u_l2_error = pow(l2_error_integral, 0.5);
+        error.u_h1_error = pow(l2_error_integral + h1_error_integral, 0.5);
+        return error;
+    }
+
+
+    template<int dim>
+    void Stokes<dim>::
+    integrate_cell(const FEValues<dim> &fe_values,
+                   double &l2_error_integral,
+                   double &h1_error_integral) const {
+
+        const FEValuesExtractors::Vector velocities(0);
+
+        // Extract the solution values and gradients from the solution vector.
+        std::vector<Tensor<1, dim>>
+                solution_values(
+                fe_values.n_quadrature_points);
+        std::vector<Tensor<2, dim>>
+                gradients(fe_values.n_quadrature_points);
+
+        fe_values[velocities].get_function_values(this->solution,
+                                                  solution_values);
+        fe_values[velocities].get_function_gradients(this->solution, gradients);
+
+        // Exact solution values
+        std::vector<Tensor<1, dim>>
+                exact_solution(fe_values.n_quadrature_points, Tensor<1, dim>());
+        analytical_velocity->value_list(fe_values.get_quadrature_points(),
+                                        exact_solution);
+
+        // Exact solution gradients
+        std::vector<Tensor<2, dim>>
+                exact_gradient(fe_values.n_quadrature_points, Tensor<2, dim>());
+        analytical_velocity->gradient_list(fe_values.get_quadrature_points(),
+                                           exact_gradient);
+
+        for (unsigned int q = 0; q < fe_values.n_quadrature_points; ++q) {
+            Tensor<1, dim> diff = exact_solution[q] - solution_values[q];
+            Tensor<2, dim> gradient_diff = gradients[q] - exact_gradient[q];
+
+            l2_error_integral += diff * diff * fe_values.JxW(q);
+            h1_error_integral += scalar_product(gradient_diff, gradient_diff) *
+                                 fe_values.JxW(q);
+        }
+    }
+
+
+    template<int dim>
+    void Stokes<dim>::
+    write_header_to_file(std::ofstream &file) {
+        file << "h, u_{L^2}, u_{H^1}" << std::endl;
+    }
+
+
+    template<int dim>
+    void Stokes<dim>::
+    write_error_to_file(Error &error, std::ofstream &file) {
+        file << error.mesh_size << ","
+             << error.u_l2_error << ","
+             << error.u_h1_error << std::endl;
+    }
+
+    template<int dim>
+    Error Stokes<dim>::run() {
         make_grid();
         output_grid();
         setup_dofs();
         assemble_system();
         solve();
         output_results();
+        return compute_error();
     }
 
 
