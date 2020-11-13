@@ -77,7 +77,7 @@ def add_convergence_line(ax, ns, errors, yscale="log2", xlabel="$N$", name=""):
     print("Polyfit:", name, res)
     print("Order of convergence", -res[0])
 
-    ax.plot(ns, errors, "-o", label=f'${name}: {-round(res[0], 3)}$')
+    ax.plot(ns, errors, "-o", label=f'${name}: {abs(round(res[0], 3))}$')
     if yscale == "log2":
         ax.set_yscale("log", base=2)
     else:
@@ -92,7 +92,7 @@ def add_convergence_line(ax, ns, errors, yscale="log2", xlabel="$N$", name=""):
     ax.set_xticks(ns)
     ns_names = []
     for n in ns:
-        ns_names.append(f'${n}$')
+        ns_names.append(f'${round(n, 3)}$')
     ax.set_xticklabels(ns_names)
 
     ax.set_xlabel(xlabel)
@@ -134,13 +134,13 @@ def conv_plots(data, columns, title="", latex=False):
     print(columns)
     first_axis_name = columns[0]
     mesh_size = data[:, 0]
-    ns = 1 / mesh_size
+    # ns = 1 / mesh_size  # TODO hardcodet inn 1 for domenestørrelsen her, fix...
 
     fig, ax = plt.subplots()
     for col_name, data_col in zip(columns[1:], [data[:, i] for i in range(1, data.shape[1])]):
         print()
         print(col_name, data_col)
-        ax = add_convergence_line(ax, ns, data_col, "log2", name=col_name)
+        ax = add_convergence_line(ax, mesh_size, data_col, "log2", name=col_name, xlabel="$h$")
     ax.set_title(title)
 
 

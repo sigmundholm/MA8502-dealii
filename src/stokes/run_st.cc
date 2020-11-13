@@ -17,8 +17,10 @@ int main() {
                                     analytical_p, 10);
         Stokes::Error error = stokes.run();
         std::cout << "u_L2 = " << error.u_l2_error << std::endl;
+        std::cout << "u_H1-semi = " << error.u_h1_semi_error << std::endl;
         std::cout << "u_H1 = " << error.u_h1_error << std::endl;
         std::cout << "p_L2 = " << error.p_l2_error << std::endl;
+        std::cout << "p_H1-semi = " << error.p_h1_semi_error << std::endl;
         std::cout << "p_H1 = " << error.p_h1_error << std::endl;
     }
 }

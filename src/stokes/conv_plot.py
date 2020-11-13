@@ -7,7 +7,7 @@ from utils.plot import conv_plots
 
 if __name__ == '__main__':
     base = split(split(os.getcwd())[0])[0]
-    skip = 1
+    skip = 0
     for poly_order in [1, 2]:
         full_path = os.path.join(base, f"build/src/stokes/errors-o{poly_order}.csv")
 
@@ -15,7 +15,7 @@ if __name__ == '__main__':
         data = np.genfromtxt(full_path, delimiter=",", skip_header=True)
         data = data[skip:, :]
 
-        conv_plots(data, head, title=r"$\textrm{Advection Diffusion: polynomial order: " + str(poly_order) + "}$")
+        conv_plots(data, head, title=r"$\textrm{Stokes: polynomial order: " + str(poly_order) + "}$")
 
         hs = data[:, 0]
         l2 = data[:, 1]

@@ -12,8 +12,10 @@ namespace Stokes {
     struct Error {
         double mesh_size = 0;
         double u_l2_error = 0;
+        double u_h1_semi_error = 0;
         double u_h1_error = 0;
         double p_l2_error = 0;
+        double p_h1_semi_error = 0;
         double p_h1_error = 0;
     };
 

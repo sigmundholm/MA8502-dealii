@@ -45,8 +45,10 @@ namespace Stokes {
         Error compute_error();
 
         void integrate_cell(const FEValues<dim, dim> &fe_values,
-                            double &l2_error_integral_u,
-                            double &h1_error_integral_u) const;
+                            double &u_l2_error_integral,
+                            double &u_h1_error_integral,
+                            double &p_l2_error_integral,
+                            double &p_h1_error_integral) const;
 
         const unsigned int degree;
         const int n_refines;

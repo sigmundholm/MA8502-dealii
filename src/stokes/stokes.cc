@@ -313,19 +313,26 @@ namespace Stokes {
                                 update_values | update_gradients |
                                 update_quadrature_points | update_JxW_values);
 
-        double l2_error_integral = 0;
-        double h1_error_integral = 0;
+        double u_l2_error_integral = 0;
+        double u_h1_error_integral = 0;
+        double p_l2_error_integral = 0;
+        double p_h1_error_integral = 0;
 
         // Loop through all cells and calculate the norms.
         for (const auto &cell : this->dof_handler.active_cell_iterators()) {
             fe_values.reinit(cell);
-            integrate_cell(fe_values, l2_error_integral, h1_error_integral);
+            integrate_cell(fe_values, u_l2_error_integral, u_h1_error_integral,
+                           p_l2_error_integral, p_h1_error_integral);
         }
 
         Error error;
         error.mesh_size = h;
-        error.u_l2_error = pow(l2_error_integral, 0.5);
-        error.u_h1_error = pow(l2_error_integral + h1_error_integral, 0.5);
+        error.u_l2_error = pow(u_l2_error_integral, 0.5);
+        error.u_h1_semi_error = pow(u_h1_error_integral, 0.5);
+        error.u_h1_error = pow(u_l2_error_integral + u_h1_error_integral, 0.5);
+        error.p_l2_error = pow(p_l2_error_integral, 0.5);
+        error.p_h1_semi_error = pow(p_h1_error_integral, 0.5);
+        error.p_h1_error = pow(p_l2_error_integral + p_h1_error_integral, 0.5);
         return error;
     }
 
@@ -333,41 +340,70 @@ namespace Stokes {
     template<int dim>
     void Stokes<dim>::
     integrate_cell(const FEValues<dim> &fe_values,
-                   double &l2_error_integral,
-                   double &h1_error_integral) const {
+                   double &u_l2_error_integral,
+                   double &u_h1_error_integral,
+                   double &p_l2_error_integral,
+                   double &p_h1_error_integral) const {
 
-        const FEValuesExtractors::Vector velocities(0);
+        const FEValuesExtractors::Vector v(0);
+        const FEValuesExtractors::Scalar p(dim);
 
         // Extract the solution values and gradients from the solution vector.
         std::vector<Tensor<1, dim>>
-                solution_values(
-                fe_values.n_quadrature_points);
-        std::vector<Tensor<2, dim>>
-                gradients(fe_values.n_quadrature_points);
+                num_velocity(fe_values.n_quadrature_points);
+        fe_values[v].get_function_values(this->solution, num_velocity);
 
-        fe_values[velocities].get_function_values(this->solution,
-                                                  solution_values);
-        fe_values[velocities].get_function_gradients(this->solution, gradients);
+        std::vector<double> num_pressure(fe_values.n_quadrature_points);
+        fe_values[p].get_function_values(this->solution, num_pressure);
+
+        std::vector<Tensor<2, dim>>
+                num_velocity_grad(fe_values.n_quadrature_points);
+        fe_values[v].get_function_gradients(this->solution,
+                                            num_velocity_grad);
+
+        std::vector<Tensor<1, dim>> num_pressure_grad(
+                fe_values.n_quadrature_points);
+        fe_values[p].get_function_gradients(this->solution, num_pressure_grad);
 
         // Exact solution values
         std::vector<Tensor<1, dim>>
-                exact_solution(fe_values.n_quadrature_points, Tensor<1, dim>());
+                exact_velocity(fe_values.n_quadrature_points, Tensor<1, dim>());
         analytical_velocity->value_list(fe_values.get_quadrature_points(),
-                                        exact_solution);
+                                        exact_velocity);
+
+        std::vector<double>
+                exact_pressure(fe_values.n_quadrature_points);
+        analytical_pressure->value_list(fe_values.get_quadrature_points(),
+                                        exact_pressure);
 
         // Exact solution gradients
         std::vector<Tensor<2, dim>>
-                exact_gradient(fe_values.n_quadrature_points, Tensor<2, dim>());
+                exact_velocity_grad(fe_values.n_quadrature_points,
+                                    Tensor<2, dim>());
         analytical_velocity->gradient_list(fe_values.get_quadrature_points(),
-                                           exact_gradient);
+                                           exact_velocity_grad);
+
+        std::vector<Tensor<1, dim>> exact_pressure_grad(
+                fe_values.n_quadrature_points, Tensor<1, dim>());
+        analytical_pressure->gradient_list(fe_values.get_quadrature_points(),
+                                           exact_pressure_grad);
 
         for (unsigned int q = 0; q < fe_values.n_quadrature_points; ++q) {
-            Tensor<1, dim> diff = exact_solution[q] - solution_values[q];
-            Tensor<2, dim> gradient_diff = gradients[q] - exact_gradient[q];
+            Tensor<1, dim> diff_u = exact_velocity[q] - num_velocity[q];
+            double diff_p = exact_pressure[q] - num_pressure[q];
 
-            l2_error_integral += diff * diff * fe_values.JxW(q);
-            h1_error_integral += scalar_product(gradient_diff, gradient_diff) *
-                                 fe_values.JxW(q);
+            Tensor<2, dim> diff_grad_u =
+                    exact_velocity_grad[q] - num_velocity_grad[q];
+            Tensor<1, dim> diff_grad_p =
+                    exact_pressure_grad[q] - num_pressure_grad[q];
+
+
+            u_l2_error_integral += diff_u * diff_u * fe_values.JxW(q);
+            u_h1_error_integral += scalar_product(diff_grad_u, diff_grad_u) *
+                                   fe_values.JxW(q);
+
+            p_l2_error_integral += diff_p * diff_p * fe_values.JxW(q);
+            p_h1_error_integral += diff_grad_p * diff_grad_p * fe_values.JxW(q);
         }
     }
 
@@ -375,7 +411,8 @@ namespace Stokes {
     template<int dim>
     void Stokes<dim>::
     write_header_to_file(std::ofstream &file) {
-        file << "h, u_{L^2}, u_{H^1}" << std::endl;
+        file << "h, \\|u\\|_{L^2}, |u|_{H^1}, \\|u\\|_{H^1}, "
+                "\\|p\\|_{L^2}, |p|_{H^1}, \\|p\\|_{H^1}" << std::endl;
     }
 
 
@@ -384,7 +421,11 @@ namespace Stokes {
     write_error_to_file(Error &error, std::ofstream &file) {
         file << error.mesh_size << ","
              << error.u_l2_error << ","
-             << error.u_h1_error << std::endl;
+             << error.u_h1_semi_error << ","
+             << error.u_h1_error << ","
+             << error.p_l2_error << ","
+             << error.p_h1_semi_error << ","
+             << error.p_h1_error << std::endl;
     }
 
     template<int dim>
