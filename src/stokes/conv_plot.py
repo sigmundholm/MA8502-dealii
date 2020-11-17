@@ -15,7 +15,7 @@ if __name__ == '__main__':
         data = np.genfromtxt(full_path, delimiter=",", skip_header=True)
         data = data[skip:, :]
 
-        conv_plots(data, head, title=r"$\textrm{Stokes: polynomial order: " + str(poly_order) + "}$")
+        conv_plots(data, head, title=r"$\textrm{Stokes: polynomial order: (" + str(poly_order + 1) + ", " + str(poly_order) + ")}$")
 
         hs = data[:, 0]
         l2 = data[:, 1]
@@ -27,5 +27,5 @@ if __name__ == '__main__':
         print("EOC (L2): ", eoc_l2)
         print("EOC (H1): ", eoc_h1)
         print("========================================")
-
+        plt.savefig(f"figure-o{poly_order}.pdf")
     plt.show()

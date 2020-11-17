@@ -18,6 +18,7 @@
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/dofs/dof_renumbering.h>
 
+#include <deal.II/fe/component_mask.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
@@ -30,6 +31,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "../utils/integration.h"
 #include "stokes.h"
 
 using namespace dealii;
@@ -271,6 +273,7 @@ namespace Stokes {
         }
     }
 
+
     template<int dim>
     void Stokes<dim>::solve() {
         // TODO annen løser? Løs på blokk-form?
@@ -278,6 +281,7 @@ namespace Stokes {
         inverse.initialize(system_matrix);
         inverse.vmult(solution, system_rhs);
     }
+
 
     template<int dim>
     void Stokes<dim>::output_results() const {
@@ -302,9 +306,12 @@ namespace Stokes {
         std::cout << "  Output written to .vtk file." << std::endl;
     }
 
+
     template<int dim>
     Error Stokes<dim>::
     compute_error() {
+        std::cout << "  Compute Error" << std::endl;
+
         QGauss<dim> quadrature_formula(
                 fe.degree + 2);  // TODO degree+1 eller +2?
 
@@ -312,6 +319,17 @@ namespace Stokes {
                                 quadrature_formula,
                                 update_values | update_gradients |
                                 update_quadrature_points | update_JxW_values);
+
+        // Compute the mean exact and numeric pressure to adjust them both to
+        // zero mean when integrating the error.
+        double mean_num_pressure = 0;
+        double mean_ext_pressure = 0;
+        Utils::compute_mean_pressure(dof_handler,
+                                     fe_values,
+                                     solution,
+                                     *analytical_pressure,
+                                     mean_num_pressure,
+                                     mean_ext_pressure);
 
         double u_l2_error_integral = 0;
         double u_h1_error_integral = 0;
@@ -322,7 +340,8 @@ namespace Stokes {
         for (const auto &cell : this->dof_handler.active_cell_iterators()) {
             fe_values.reinit(cell);
             integrate_cell(fe_values, u_l2_error_integral, u_h1_error_integral,
-                           p_l2_error_integral, p_h1_error_integral);
+                           p_l2_error_integral, p_h1_error_integral,
+                           mean_num_pressure, mean_ext_pressure);
         }
 
         Error error;
@@ -343,7 +362,9 @@ namespace Stokes {
                    double &u_l2_error_integral,
                    double &u_h1_error_integral,
                    double &p_l2_error_integral,
-                   double &p_h1_error_integral) const {
+                   double &p_h1_error_integral,
+                   const double &mean_num_pressure,
+                   const double &mean_ext_pressure) const {
 
         const FEValuesExtractors::Vector v(0);
         const FEValuesExtractors::Scalar p(dim);
@@ -390,7 +411,9 @@ namespace Stokes {
 
         for (unsigned int q = 0; q < fe_values.n_quadrature_points; ++q) {
             Tensor<1, dim> diff_u = exact_velocity[q] - num_velocity[q];
-            double diff_p = exact_pressure[q] - num_pressure[q];
+            double diff_p =
+                    (exact_pressure[q] - mean_ext_pressure) -
+                    (num_pressure[q] - mean_num_pressure);
 
             Tensor<2, dim> diff_grad_u =
                     exact_velocity_grad[q] - num_velocity_grad[q];

@@ -48,7 +48,9 @@ namespace Stokes {
                             double &u_l2_error_integral,
                             double &u_h1_error_integral,
                             double &p_l2_error_integral,
-                            double &p_h1_error_integral) const;
+                            double &p_h1_error_integral,
+                            const double &mean_num_pressure,
+                            const double &mean_ext_pressure) const;
 
         const unsigned int degree;
         const int n_refines;
